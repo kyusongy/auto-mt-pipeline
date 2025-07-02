@@ -1,0 +1,171 @@
+#!/usr/bin/env python3
+"""
+Auto MT Pipeline - Reorganized APIGen-MT Implementation
+
+A clean demonstration of the APIGen-MT two-phase pipeline:
+1. Blueprint generation & validation
+2. Trajectory collection via simulated conversations
+
+This reorganized version centralizes all configuration and follows
+a clean directory structure based on the mt_pipeline template.
+
+Usage:
+    python run_pipeline.py
+
+Configure your LLM endpoint in config/llm_config.py.
+"""
+
+import json
+from pathlib import Path
+import sys
+
+# Ensure the current directory is on sys.path
+sys.path.insert(0, str(Path(__file__).parent))
+
+from config import (
+    DEFAULT_LLM_CONFIG,
+    BLUEPRINT_GENERATION_OPTIONS,
+    TRAJECTORY_AGENT_OPTIONS,
+    TRAJECTORY_JUDGE_OPTIONS,
+    DOMAIN_RULES,
+    PERSONAS,
+    SAMPLED_USER_DETAILS,
+    SAMPLED_ORDERS,
+    EXAMPLE_TASK,
+    DEFAULT_PIPELINE_CONFIG,
+)
+from core.blueprint.pipeline import generate_valid_blueprint
+from core.trajectory.pipeline import TrajectoryCollector
+from tools.retail_tools import TOOLS_SCHEMA
+
+# ---------------------------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------------------------
+
+# Use centralized configuration
+LLM_CONFIG = DEFAULT_LLM_CONFIG
+PIPELINE_CONFIG = DEFAULT_PIPELINE_CONFIG
+
+# Output configuration
+OUTPUT_DIR = Path("data")
+OUTPUT_DIR.mkdir(exist_ok=True)
+
+# Enable debug output from blueprint generation
+import core.blueprint.pipeline as bp_pipeline
+bp_pipeline.GenerationOptions = lambda **kwargs: BLUEPRINT_GENERATION_OPTIONS.model_copy(update=kwargs)
+
+# ---------------------------------------------------------------------------
+# Main Pipeline
+# ---------------------------------------------------------------------------
+
+def main():
+    """Run the complete MT pipeline."""
+    print("="*60)
+    print("🚀 Auto MT Pipeline - Reorganized APIGen-MT")
+    print("="*60)
+    
+    # Phase 1: Generate validated blueprint
+    print("\n📋 Phase 1: Blueprint Generation & Validation")
+    print("-" * 40)
+    
+    blueprint = generate_valid_blueprint(
+        LLM_CONFIG,
+        TOOLS_SCHEMA,
+        PERSONAS,
+        max_attempts=PIPELINE_CONFIG.max_blueprint_attempts,
+        prompt_kwargs={
+            "domain_rules": DOMAIN_RULES,
+            "sampled_user_details": SAMPLED_USER_DETAILS,
+            "sampled_orders": SAMPLED_ORDERS,
+            "examples": EXAMPLE_TASK,
+            "task_rules": "",
+        },
+    )
+
+    print("\n📝 Generated Blueprint:")
+    print(f"  Intent: {blueprint.user_intent}")
+    print(f"  Actions: {len(blueprint.actions)} tool calls")
+    print(f"  Expected outputs: {len(blueprint.expected_outputs)} items")
+    
+    # Show the blueprint structure
+    blueprint_data = {
+        "intent": blueprint.user_intent,
+        "actions": [a.model_dump() for a in blueprint.actions],
+        "outputs": blueprint.expected_outputs,
+    }
+    
+    print("\n📋 Blueprint JSON:")
+    print(json.dumps(blueprint_data, indent=2, ensure_ascii=False))
+    
+    # Save blueprint for inspection
+    blueprint_file = OUTPUT_DIR / "blueprint.json"
+    blueprint_file.write_text(json.dumps(blueprint_data, indent=2, ensure_ascii=False))
+    print(f"\n💾 Blueprint saved to: {blueprint_file}")
+
+    # Phase 2: Collect trajectory
+    print("\n💬 Phase 2: Trajectory Collection")
+    print("-" * 40)
+    
+    if not blueprint.actions or blueprint.user_intent.startswith("[PARSING"):
+        print("\n❌ Blueprint generation failed – skipping trajectory collection.")
+        return False
+
+    collector = TrajectoryCollector(
+        LLM_CONFIG,  # human_cfg
+        LLM_CONFIG,  # agent_cfg
+        tools_schema=TOOLS_SCHEMA,
+        debug=PIPELINE_CONFIG.debug,
+    )
+    
+    trajectory = collector.collect(blueprint)
+
+    if trajectory:
+        print(f"\n✅ Successfully collected trajectory with {len(trajectory.turns)} turns")
+        print("\n📞 Conversation:")
+        for t in trajectory.turns:
+            if t.role == "user":
+                tag = "USER"
+            elif t.role == "assistant":
+                tag = "ASSISTANT"
+            else:
+                tag = t.role.upper()
+            print(f"[{tag}] {t.content}")
+        
+        # Save complete trajectory  
+        trajectory_data = {
+            "blueprint": blueprint_data,
+            "trajectory": {
+                "turns": [{"role": t.role, "content": t.content} for t in trajectory.turns],
+                "tool_calls": [tc.model_dump() for tc in trajectory.tool_calls],
+            },
+            "metadata": {
+                "total_turns": len(trajectory.turns),
+                "tool_calls_made": len(trajectory.tool_calls),
+            }
+        }
+        
+        trajectory_file = OUTPUT_DIR / "trajectory.json"
+        trajectory_file.write_text(json.dumps(trajectory_data, indent=2, ensure_ascii=False))
+        print(f"\n💾 Complete trajectory saved to: {trajectory_file}")
+        
+    else:
+        print("\n❌ Failed to collect a valid trajectory")
+        return False
+
+    print("\n🎉 Pipeline completed successfully!")
+    print(f"📁 Check {OUTPUT_DIR}/ for output files")
+    return True
+
+
+if __name__ == "__main__":
+    try:
+        success = main()
+        exit(0 if success else 1)
+    except KeyboardInterrupt:
+        print("\n\n⚠️  Pipeline interrupted by user")
+        exit(1)
+    except Exception as e:
+        print(f"\n💥 Pipeline failed with error: {e}")
+        import traceback
+        traceback.print_exc()
+        exit(1)

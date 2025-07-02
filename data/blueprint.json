@@ -1,0 +1,23 @@
+{
+  "intent": "You are Emma Clark in 27513. Your order #X9934712 for wireless earbuds is currently shipped, but you want to cancel it immediately as you found a cheaper option online. You are price-conscious and want to avoid receiving the item to save on return shipping costs.",
+  "actions": [
+    {
+      "name": "find_user_id_by_name_zip",
+      "arguments": {
+        "first_name": "Emma",
+        "last_name": "Clark",
+        "zip": "27513"
+      }
+    },
+    {
+      "name": "cancel_order",
+      "arguments": {
+        "order_id": "#X9934712",
+        "reason": "Better price found"
+      }
+    }
+  ],
+  "outputs": [
+    "Your cancellation request for order #X9934712 has been processed successfully."
+  ]
+}

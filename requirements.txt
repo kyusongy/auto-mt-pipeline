@@ -1,0 +1,16 @@
+# Auto MT Pipeline Dependencies
+# Reorganized from LLM-Application codebase
+
+# Core dependencies
+openai>=1.0.0
+pydantic>=2.0.0
+httpx
+rich
+
+# Qwen Agent integration
+qwen-agent
+
+# Development dependencies (optional)
+pytest
+black
+flake8
