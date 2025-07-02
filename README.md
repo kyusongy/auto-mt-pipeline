@@ -1,6 +1,6 @@
 # Auto MT Pipeline
 
-A reorganized implementation of the APIGen-MT blueprint generation and trajectory collection pipeline.
+A reorganized and cleaned implementation of the APIGen-MT blueprint generation and trajectory collection pipeline.
 
 ## Overview
 
@@ -8,8 +8,7 @@ This codebase has been reorganized from the original LLM-Application with the fo
 
 1. **Centralized Configuration**: All LLM configurations, sampling settings, and domain-specific parameters are now centralized in `config/llm_config.py`
 2. **Clean Directory Structure**: Follows the mt_pipeline template organization pattern
-3. **Separation of Concerns**: Clear separation between core functionality, tools, configuration, and examples
-4. **Preserved Logic**: All original code logic, especially Qwen agent implementation, remains unchanged
+3. **Separation of Concerns**: Clear separation between core functionality, tools, configuration, and utilities
 
 ## Directory Structure
 
@@ -20,22 +19,25 @@ auto_mt_pipeline/
 │   └── __init__.py
 ├── core/                   # Core functionality
 │   ├── blueprint/          # Blueprint generation & validation
+│   │   ├── pipeline.py
+│   │   └── __init__.py
 │   ├── trajectory/         # Trajectory collection
+│   │   ├── pipeline.py
+│   │   ├── qwen_tool_wrappers.py
+│   │   └── __init__.py
 │   ├── llm_client.py       # LLM client
 │   ├── models.py           # Data models
 │   └── __init__.py
 ├── tools/                  # Tool definitions and schemas
 │   ├── retail_tools.py     # Retail domain tools
 │   └── __init__.py
-├── examples/               # Example data and outputs
-├── utils/                  # Utility functions
-├── prompts/               # Prompt templates
-├── data/                  # Output directory
-├── workspace/             # Working directory
-├── run_pipeline.py        # Main entry point
-├── requirements.txt       # Dependencies
-└── README.md             # This file
+├── data/                   # Output directory (generated at runtime)
+├── run_pipeline.py         # Main entry point
+├── requirements.txt        # Dependencies
+└── README.md              # This file
 ```
+
+
 
 ## Configuration
 
@@ -80,13 +82,3 @@ DEFAULT_LLM_CONFIG = LLMConfig(
 - **Debug Support**: Comprehensive logging and debug output options
 - **Extensible**: Clean structure makes it easy to add new tools and prompts
 
-## Migration from Original
-
-This reorganized version maintains 100% compatibility with the original LLM-Application functionality while providing:
-
-- Better organization and maintainability
-- Centralized configuration management
-- Cleaner import structure
-- Template-based directory layout
-
-All original algorithms, especially the Qwen agent implementation, remain unchanged.

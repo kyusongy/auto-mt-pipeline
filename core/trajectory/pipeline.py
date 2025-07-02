@@ -454,27 +454,7 @@ class TrajectoryCollector:
         return None
 
 
-# ---------------------------------------------------------------------------
-# Example script usage
-# ---------------------------------------------------------------------------
 
-if __name__ == "__main__":
-    # Dummy configs (replace with real endpoints)
-    cfg = LLMConfig(base_url="http://127.0.0.1:12345/v1", model="/data1/yaoys6/models/Qwen3-32B", api_key="tokenabc123")
-    blueprint_example = Blueprint(
-        user_intent="I want to order a laptop and then track it.",
-        actions=[ToolCalling(name="create_order", arguments={"item": "laptop", "quantity": 1}),
-                 ToolCalling(name="track_order", arguments={"order_id": "ORD123"})],
-        expected_outputs=["Your order for 1 laptop has been placed.", "Order ORD123 is currently"],
-    )
-
-    collector = TrajectoryCollector(cfg, cfg)
-    traj = collector.collect(blueprint_example)
-    if traj:
-        print("Collected trajectory with", len(traj.turns), "turns")
-        print(json.dumps([t.__dict__ for t in traj.turns], indent=2, ensure_ascii=False))
-    else:
-        print("Failed to collect a valid trajectory")
 
 # ---------------------------------------------------------------------------
 # Utility for vLLM "reasoning" messages
