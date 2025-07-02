@@ -1,0 +1,40 @@
+# Auto MT Pipeline Configuration
+# This file contains the essential settings you need to configure.
+# Advanced settings are handled automatically with sensible defaults.
+
+# =============================================================================
+# LLM Service Configuration (REQUIRED)
+# =============================================================================
+llm:
+  base_url: "http://127.0.0.1:12345/v1"  # Your OpenAI-compatible endpoint
+  model: "qwen-32b"                       # Model name or path
+  api_key: "tokenabc123"                  # API key (any string if server ignores auth)
+
+# =============================================================================
+# Generation Parameters (OPTIONAL - fine-tune if needed)
+# =============================================================================
+generation:
+  # Blueprint generation (creativity for diverse scenarios)
+  blueprint_temperature: 1.0
+  blueprint_max_tokens: 8192
+  
+  # Trajectory collection - customer simulator (consistency for realistic behavior)
+  trajectory_temperature: 0.3
+  trajectory_max_tokens: 4096
+  
+  # Retail assistant agent (balance between helpful and deterministic)
+  assistant_temperature: 0.3
+  assistant_max_tokens: 4096
+  
+  # Request timeout for all LLM calls (seconds)
+  timeout: 120
+
+# =============================================================================
+# Pipeline Settings (OPTIONAL - adjust for your needs)
+# =============================================================================
+pipeline:
+  max_blueprint_attempts: 5  # Max retries for blueprint generation
+  bon_n: 1                   # Best-of-N sampling for trajectory collection
+  debug: true                # Enable debug output for development
+
+ 

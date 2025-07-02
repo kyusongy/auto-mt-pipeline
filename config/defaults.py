@@ -1,13 +1,17 @@
-"""Centralized configuration for auto_mt_pipeline.
+"""Default configurations for auto_mt_pipeline.
 
-This module centralizes all initialization parameters, LLM configurations,
-sampling settings, and domain-specific data that were previously scattered
-throughout the codebase.
+This module contains all the detailed retail configurations, domain rules, personas,
+and sample data. Users typically don't need to modify this file - instead,
+they should use the simple config.yaml for their settings.
 """
 
 from typing import Optional, Dict, List
 from pydantic import BaseModel, Field, ConfigDict
 
+
+# =============================================================================
+# Pydantic Models for Configuration Validation
+# =============================================================================
 
 class GenerationOptions(BaseModel):
     """LLM generation configuration options."""
@@ -55,61 +59,26 @@ class LLMConfig(BaseModel):
     )
 
 
-# ---------------------------------------------------------------------------
-# LLM Configuration
-# ---------------------------------------------------------------------------
+class PipelineConfig(BaseModel):
+    """Configuration for the complete pipeline."""
+    
+    max_blueprint_attempts: int = Field(
+        default=5,
+        description="Maximum attempts for blueprint generation"
+    )
+    bon_n: int = Field(
+        default=1,
+        description="Best-of-N sampling for trajectory collection"
+    )
+    debug: bool = Field(
+        default=False,
+        description="Enable debug output"
+    )
 
-DEFAULT_LLM_CONFIG = LLMConfig(
-    base_url="http://127.0.0.1:12345/v1",        # your OpenAI-compatible endpoint
-    model="qwen-32b",                            # model name or path
-    api_key="tokenabc123",                       # any string if server ignores auth
-)
 
-# ---------------------------------------------------------------------------
-# Generation Options for Different Components
-# ---------------------------------------------------------------------------
-
-# Blueprint generation options (higher temperature for creativity)
-BLUEPRINT_GENERATION_OPTIONS = GenerationOptions(
-    temperature=1.0,
-    max_tokens=8192,
-    timeout=120
-)
-
-# Blueprint committee review options (deterministic for consistent scoring)
-BLUEPRINT_COMMITTEE_OPTIONS = GenerationOptions(
-    temperature=0.1,
-    max_tokens=2048,
-    timeout=60,
-    extra_body={"enable_reasoning": False}
-)
-
-# Trajectory collection - agent options (lower temperature for consistency)
-TRAJECTORY_AGENT_OPTIONS = GenerationOptions(
-    temperature=0.3,
-    max_tokens=4096,
-    timeout=120,
-    extra_body={"enable_reasoning": True}
-)
-
-# Trajectory collection - judge options (deterministic for scoring)
-TRAJECTORY_JUDGE_OPTIONS = GenerationOptions(
-    temperature=0.0,
-    max_tokens=2048,
-    timeout=60,
-    extra_body={"enable_reasoning": False}
-)
-
-# Default generation options
-DEFAULT_GENERATION_OPTIONS = GenerationOptions(
-    temperature=0.7,
-    max_tokens=8192,
-    timeout=120
-)
-
-# ---------------------------------------------------------------------------
-# Domain-Specific Configuration
-# ---------------------------------------------------------------------------
+# =============================================================================
+# Retail Domain Configuration
+# =============================================================================
 
 DOMAIN_RULES = """# Retail agent policy
 As a retail agent, you can help users cancel or modify pending orders, return or exchange delivered orders, modify their default user address, or provide information about their own profile, orders, and related products.
@@ -166,7 +135,6 @@ PERSONAS = [
     "Busy parent Carla",               # cares about speed and convenience
 ]
 
-# Dummy user & order snapshots – used as prompt context for the blueprint LLM
 SAMPLED_USER_DETAILS = """
 - User ID: user_YRos_19122, Name: Yusuf Rossi, ZIP: 19122, History: Bought peripherals & smart devices.
 - User ID: user_EClar_27513, Name: Emma Clark, ZIP: 27513, History: Bought textbooks & earbuds.
@@ -176,10 +144,6 @@ SAMPLED_ORDERS = """
 - Order ID: #W2378156, Status: Delivered, Items: [keyboard-id 1151293680, thermostat-id 4983901480]
 - Order ID: #X9934712, Status: Shipped,   Items: [earbuds-id 3311224488]
 """
-
-# ---------------------------------------------------------------------------
-# Example Task Template
-# ---------------------------------------------------------------------------
 
 EXAMPLE_TASK = """
 <thought>
@@ -228,29 +192,67 @@ To fulfil this we must:
 </answer>
 """
 
-# ---------------------------------------------------------------------------
-# Pipeline Configuration
-# ---------------------------------------------------------------------------
 
-class PipelineConfig(BaseModel):
-    """Configuration for the complete pipeline."""
-    
-    max_blueprint_attempts: int = Field(
-        default=5,
-        description="Maximum attempts for blueprint generation"
-    )
-    bon_n: int = Field(
-        default=1,
-        description="Best-of-N sampling for trajectory collection"
-    )
-    debug: bool = Field(
-        default=False,
-        description="Enable debug output"
+# =============================================================================
+# Generation Defaults for Different Components
+# =============================================================================
+
+def get_blueprint_generation_options(user_config: dict) -> GenerationOptions:
+    """Get blueprint generation options with user overrides."""
+    return GenerationOptions(
+        temperature=user_config.get("generation", {}).get("blueprint_temperature", 1.0),
+        max_tokens=user_config.get("generation", {}).get("blueprint_max_tokens", 8192),
+        timeout=user_config.get("generation", {}).get("timeout", 120)
     )
 
 
-DEFAULT_PIPELINE_CONFIG = PipelineConfig(
-    max_blueprint_attempts=5,
-    bon_n=3,
-    debug=True
-)
+def get_blueprint_committee_options(user_config: dict) -> GenerationOptions:
+    """Get blueprint committee review options (deterministic for scoring)."""
+    return GenerationOptions(
+        temperature=0.1,
+        max_tokens=2048,
+        timeout=user_config.get("generation", {}).get("timeout", 60),
+        extra_body={"enable_reasoning": False}
+    )
+
+
+def get_trajectory_agent_options(user_config: dict) -> GenerationOptions:
+    """Get trajectory agent options with user overrides."""
+    return GenerationOptions(
+        temperature=user_config.get("generation", {}).get("trajectory_temperature", 0.3),
+        max_tokens=user_config.get("generation", {}).get("trajectory_max_tokens", 4096),
+        timeout=user_config.get("generation", {}).get("timeout", 120),
+        extra_body={"enable_reasoning": True}
+    )
+
+
+def get_assistant_agent_options(user_config: dict) -> GenerationOptions:
+    """Get retail assistant agent options with user overrides."""
+    return GenerationOptions(
+        temperature=user_config.get("generation", {}).get("assistant_temperature", 0.7),
+        max_tokens=user_config.get("generation", {}).get("assistant_max_tokens", 2048),
+        timeout=user_config.get("generation", {}).get("timeout", 120),
+        extra_body={"enable_reasoning": True}
+    )
+
+
+def get_trajectory_judge_options(user_config: dict) -> GenerationOptions:
+    """Get trajectory judge options (deterministic for scoring)."""
+    return GenerationOptions(
+        temperature=0.0,
+        max_tokens=2048,
+        timeout=user_config.get("generation", {}).get("timeout", 60),
+        extra_body={"enable_reasoning": False}
+    )
+
+
+def get_default_generation_options(user_config: dict) -> GenerationOptions:
+    """Get default generation options."""
+    return GenerationOptions(
+        temperature=0.7,
+        max_tokens=8192,
+        timeout=user_config.get("generation", {}).get("timeout", 120)
+    )
+
+
+ 

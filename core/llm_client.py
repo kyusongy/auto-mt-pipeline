@@ -5,7 +5,7 @@ from openai import OpenAI
 from openai.types.chat import ChatCompletion, ChatCompletionToolParam, ChatCompletionMessageParam
 import httpx
 
-from config.llm_config import LLMConfig, GenerationOptions as LLMGenerationOptions
+from config import LLMConfig, GenerationOptions as LLMGenerationOptions
 
 
 def sync_request_llm(

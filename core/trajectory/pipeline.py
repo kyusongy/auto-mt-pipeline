@@ -15,11 +15,12 @@ import re
 import textwrap
 from typing import Any, Dict, List, Optional, Tuple
 
-from config.llm_config import (
+from config import (
     LLMConfig,
     GenerationOptions as LLMGenOpts,
     TRAJECTORY_JUDGE_OPTIONS,
     TRAJECTORY_AGENT_OPTIONS,
+    ASSISTANT_AGENT_OPTIONS,
 )
 from core.models import ToolCalling
 from core.llm_client import sync_request_llm
@@ -198,17 +199,33 @@ class SimulatedHuman:
 class QwenTestAgent:
     """Wrap Qwen-Agent's `Assistant` for our trajectory collector."""
 
-    def __init__(self, llm_cfg: LLMConfig):
+    def __init__(self, llm_cfg: LLMConfig, generation_opts: LLMGenOpts = None):
         # Import registry after wrappers have been imported so tools are present.
         from tools import retail_tools as _d
 
+        # Use provided generation options or default to ASSISTANT_AGENT_OPTIONS
+        if generation_opts is None:
+            generation_opts = ASSISTANT_AGENT_OPTIONS
+
+        # Configure Qwen-Agent's Assistant with our generation parameters
+        llm_config = {
+            "model": llm_cfg.model,
+            "model_server": llm_cfg.base_url,
+            "api_key": llm_cfg.api_key,
+        }
+        
+        # Add generation parameters if supported by this version of qwen-agent
+        if generation_opts.temperature is not None:
+            llm_config["temperature"] = generation_opts.temperature
+        if generation_opts.max_tokens:
+            llm_config["max_tokens"] = generation_opts.max_tokens
+        if generation_opts.top_p:
+            llm_config["top_p"] = generation_opts.top_p
+            
         self.bot = Assistant(
-            llm={
-                "model": llm_cfg.model,
-                "model_server": llm_cfg.base_url,
-                "api_key": llm_cfg.api_key,
-            },
+            llm=llm_config,
             function_list=list(_d.TOOLS_SCHEMA.keys()),  # expose only dummy tools to avoid heavy deps
+            system_message=_AGENT_SYSTEM_PROMPT,  # Use our retail domain system prompt
         )
 
     def respond(self, history: List[dict], tools_schema: List[dict]) -> list[dict]:
@@ -303,7 +320,7 @@ class TrajectoryCollector:
         bon_n: Best-of-N sampling for human simulation (1 = no sampling, >1 = generate N candidates and pick best)
         """
         self.human = SimulatedHuman(human_cfg, bon_n=bon_n, debug=debug)
-        self.agent = QwenTestAgent(agent_cfg)
+        self.agent = QwenTestAgent(agent_cfg, ASSISTANT_AGENT_OPTIONS)
         self.tools_schema = tools_schema or {}
         self.debug = debug
 

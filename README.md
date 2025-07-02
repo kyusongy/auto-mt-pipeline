@@ -15,8 +15,10 @@ This codebase has been reorganized from the original LLM-Application with the fo
 ```
 auto_mt_pipeline/
 ├── config/                 # Centralized configuration
-│   ├── llm_config.py       # All LLM and pipeline settings
-│   └── __init__.py
+│   ├── config.yaml         # Main user configuration (YAML)
+│   ├── defaults.py         # Advanced settings & domain data
+│   ├── __init__.py         # Configuration loader
+│   └── README.md           # Configuration guide
 ├── core/                   # Core functionality
 │   ├── blueprint/          # Blueprint generation & validation
 │   │   ├── pipeline.py
@@ -41,22 +43,23 @@ auto_mt_pipeline/
 
 ## Configuration
 
-All configuration is centralized in `config/llm_config.py`:
+The project uses a **simple YAML-based configuration** similar to ML training frameworks. You only need to edit `config/config.yaml`:
 
-- **LLM Settings**: endpoint URL, model name, API key
-- **Generation Options**: different settings for blueprint generation, trajectory collection, etc.
-- **Domain Data**: business rules, personas, sample data
-- **Pipeline Settings**: debug flags, retry limits, etc.
+```yaml
+# Essential settings - just update these 3 fields!
+llm:
+  base_url: "http://127.0.0.1:12345/v1"  # Your LLM endpoint
+  model: "qwen-32b"                       # Model name
+  api_key: "tokenabc123"                  # API key
 
-To configure your LLM endpoint, edit `config/llm_config.py`:
-
-```python
-DEFAULT_LLM_CONFIG = LLMConfig(
-    base_url="http://127.0.0.1:12345/v1",  # ← your endpoint
-    model="qwen-32b",                      # ← your model
-    api_key="tokenabc123",                 # ← your API key
-)
+# Optional fine-tuning (advanced users)
+generation:
+  blueprint_temperature: 1.0   # Creativity for scenario generation
+  trajectory_temperature: 0.3  # Customer simulator consistency
+  assistant_temperature: 0.7   # Retail assistant behavior
 ```
+
+All complex settings (retail domain rules, personas, sample data) are automatically handled. See `config/README.md` for advanced options.
 
 ## Usage
 
@@ -65,7 +68,7 @@ DEFAULT_LLM_CONFIG = LLMConfig(
    pip install -r requirements.txt
    ```
 
-2. Configure your LLM endpoint in `config/llm_config.py`
+2. Configure your LLM endpoint in `config/config.yaml`
 
 3. Run the pipeline:
    ```bash

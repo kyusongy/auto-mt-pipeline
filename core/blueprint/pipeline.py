@@ -37,7 +37,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from openai.types.chat import ChatCompletionMessageParam
 
-from config.llm_config import (
+from config import (
     GenerationOptions as LLMGenerationOptions,
     LLMConfig,
     BLUEPRINT_GENERATION_OPTIONS,

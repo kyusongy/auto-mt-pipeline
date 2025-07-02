@@ -1,5 +1,5 @@
 {
-  "intent": "You are Emma Clark in 27513. You want to cancel your pending order #X9934712 for earbuds since you found a better deal elsewhere. You're impulsive and want to act fast before the order ships.",
+  "intent": "I am Emma Clark from ZIP 27513. I received my order #W2378156 and want to exchange the thermostat (item ID 4983901480) for a model that supports Alexa integration. The new item ID is 9234781052. I will use my PayPal account (payment method ID paypal_7845123) to cover any price difference. Confirm the exchange details and proceed.",
   "actions": [
     {
       "name": "find_user_id_by_name_zip",
@@ -12,18 +12,30 @@
     {
       "name": "get_order_details",
       "arguments": {
-        "order_id": "#X9934712"
+        "order_id": "#W2378156"
       }
     },
     {
-      "name": "cancel_order",
+      "name": "get_product_details",
       "arguments": {
-        "order_id": "#X9934712",
-        "reason": "no longer needed"
+        "product_id": "9234781052"
+      }
+    },
+    {
+      "name": "exchange_delivered_order_items",
+      "arguments": {
+        "order_id": "#W2378156",
+        "item_ids": [
+          "4983901480"
+        ],
+        "new_item_ids": [
+          "9234781052"
+        ],
+        "payment_method_id": "paypal_7845123"
       }
     }
   ],
   "outputs": [
-    "The order #X9934712 cannot be cancelled as it has already been shipped. Contact customer support for further assistance."
+    "Your exchange request for order #W2378156 has been confirmed. A new item will be shipped once the returned item is received."
   ]
 }
