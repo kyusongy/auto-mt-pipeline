@@ -37,7 +37,12 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from openai.types.chat import ChatCompletionMessageParam
 
-from config.llm_config import GenerationOptions as LLMGenerationOptions, LLMConfig
+from config.llm_config import (
+    GenerationOptions as LLMGenerationOptions,
+    LLMConfig,
+    BLUEPRINT_GENERATION_OPTIONS,
+    BLUEPRINT_COMMITTEE_OPTIONS,
+)
 from core.models import ToolCalling
 from core.llm_client import sync_request_llm
 
@@ -172,7 +177,8 @@ class BlueprintGenerator:
 
     def __init__(self, llm_config: LLMConfig, gen_opts: Optional[LLMGenerationOptions] = None):
         self.llm_config = llm_config
-        self.gen_opts = gen_opts or LLMGenerationOptions(temperature=1.0, max_tokens=1024)
+        # Use centralized default if caller does not provide custom options
+        self.gen_opts = gen_opts or BLUEPRINT_GENERATION_OPTIONS
 
     def generate(
         self,
@@ -328,7 +334,8 @@ class ReviewCommittee:
         self.cfg = llm_config
         self.size = size
         self.pass_threshold = pass_threshold
-        self.gen_opts = gen_opts or LLMGenerationOptions(temperature=0, timeout=60)
+        # Use centralized committee options as default for blueprint review
+        self.gen_opts = gen_opts or BLUEPRINT_COMMITTEE_OPTIONS
         self.tools_schema = tools_schema or {}
 
     def _build_messages(self, bp: Blueprint) -> List[ChatCompletionMessageParam]:
@@ -384,10 +391,10 @@ def generate_valid_blueprint(
 ) -> Blueprint:
     """Generate-validate-review loop until a blueprint is accepted or we give up."""
 
-    # High-creativity settings for the generator
-    generator_opts = LLMGenerationOptions(temperature=1.0, max_tokens=2048, timeout=120, debug=True)
-    # Low-creativity, deterministic settings for the judge
-    committee_opts = LLMGenerationOptions(temperature=0.1, max_tokens=2048, timeout=120, debug=True)
+    # Use centralized generator options (enable debug for visibility)
+    generator_opts = BLUEPRINT_GENERATION_OPTIONS.model_copy(update={"debug": True})
+    # Use centralized committee options for blueprint review (enable debug for visibility)
+    committee_opts = BLUEPRINT_COMMITTEE_OPTIONS.model_copy(update={"debug": True})
 
     generator = BlueprintGenerator(llm_cfg, gen_opts=generator_opts)
     validator = BlueprintValidator(tools_schema)

@@ -25,8 +25,6 @@ sys.path.insert(0, str(Path(__file__).parent))
 from config import (
     DEFAULT_LLM_CONFIG,
     BLUEPRINT_GENERATION_OPTIONS,
-    TRAJECTORY_AGENT_OPTIONS,
-    TRAJECTORY_JUDGE_OPTIONS,
     DOMAIN_RULES,
     PERSONAS,
     SAMPLED_USER_DETAILS,
@@ -115,6 +113,7 @@ def main():
         LLM_CONFIG,  # agent_cfg
         tools_schema=TOOLS_SCHEMA,
         debug=PIPELINE_CONFIG.debug,
+        bon_n=PIPELINE_CONFIG.bon_n,  # Enable best-of-N sampling
     )
     
     trajectory = collector.collect(blueprint)

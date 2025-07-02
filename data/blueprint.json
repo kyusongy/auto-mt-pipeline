@@ -1,5 +1,5 @@
 {
-  "intent": "You are Emma Clark in 27513. Your order #X9934712 for wireless earbuds is currently shipped, but you want to cancel it immediately as you found a cheaper option online. You are price-conscious and want to avoid receiving the item to save on return shipping costs.",
+  "intent": "You are Emma Clark in 27513. You want to cancel your pending order #X9934712 for earbuds since you found a better deal elsewhere. You're impulsive and want to act fast before the order ships.",
   "actions": [
     {
       "name": "find_user_id_by_name_zip",
@@ -10,14 +10,20 @@
       }
     },
     {
+      "name": "get_order_details",
+      "arguments": {
+        "order_id": "#X9934712"
+      }
+    },
+    {
       "name": "cancel_order",
       "arguments": {
         "order_id": "#X9934712",
-        "reason": "Better price found"
+        "reason": "no longer needed"
       }
     }
   ],
   "outputs": [
-    "Your cancellation request for order #X9934712 has been processed successfully."
+    "The order #X9934712 cannot be cancelled as it has already been shipped. Contact customer support for further assistance."
   ]
 }

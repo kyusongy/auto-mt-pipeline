@@ -15,7 +15,12 @@ import re
 import textwrap
 from typing import Any, Dict, List, Optional, Tuple
 
-from config.llm_config import LLMConfig, GenerationOptions as LLMGenOpts
+from config.llm_config import (
+    LLMConfig,
+    GenerationOptions as LLMGenOpts,
+    TRAJECTORY_JUDGE_OPTIONS,
+    TRAJECTORY_AGENT_OPTIONS,
+)
 from core.models import ToolCalling
 from core.llm_client import sync_request_llm
 from core.blueprint.pipeline import Blueprint  # reuse dataclass from phase-1
@@ -61,10 +66,20 @@ _BON_USER_LM_PROMPT_TEMPLATE = textwrap.dedent(
     give the assistant. Please help the human evaluate this candidate response, give an integer score (ranging from 0 to 10) to indicate the correctness of the response,
     higher score means better quality.
 
-    1. If the response includes specific item / order / personal details, and they correctly match the task description you should give full score of 10. If there is some
+    CRITICAL: The response MUST be from the perspective of a CUSTOMER/USER, NOT an assistant or agent.
+
+    1. **ROLE CONFUSION (AUTOMATIC SCORE 0)**: If the response sounds like it's coming from an assistant/agent rather than a customer, give score 0. Signs include:
+       - Offering help or assistance (e.g., "I can help you with...", "Let me know...", "I'll provide the next steps")
+       - Asking what the customer wants (e.g., "Would you like a refund or replacement?")
+       - Using assistant language (e.g., "To proceed with...", "I need to verify...", "Your order has been verified")
+       - Acting like they have access to systems or can process requests
+
+    2. If the response includes specific item / order / personal details, and they correctly match the task description you should give full score of 10. If there is some
        change in details, give a corresponding lower score (more incorrect details gets lower score).
-    2. The response can include any normal conversation otherwise (e.g. asking details, saying ###STOP###) etc. which are all correct responses.
-    3. Additionally, if the candidate_response keeps the conversation flowing by describing the task clearly / gives information properly then give a high score and if not
+    
+    3. The response can include any normal customer conversation otherwise (e.g., asking for help, providing information, saying ###STOP###) etc. which are all correct responses.
+    
+    4. Additionally, if the candidate response keeps the conversation flowing by describing the task clearly / gives information properly then give a high score and if not
        (e.g. "I don't remember" or unhelpful response) should get a corresponding lower score.
 
     <description> {description} </description>
@@ -104,29 +119,20 @@ class SimulatedHuman:
         self.debug = debug
         self._primed = False  # ensure giant prompt is sent only once
 
-        # Lower temperature & token budget for faster, more focused replies during prototyping
-        self.agent_opts = LLMGenOpts(
-            temperature=0.3,
-            max_tokens=2048,
-            timeout=120,
-            extra_body={"enable_reasoning": True},
-            debug=debug,
-        )
-        self.judge_opts = LLMGenOpts(
-            temperature=0.0,
-            max_tokens=256,
-            timeout=30,
-            extra_body={"enable_reasoning": True},
-            debug=debug,
-        )
+        # Use centralized generation options but allow quick overriding of `debug`
+        self.agent_opts = TRAJECTORY_AGENT_OPTIONS.model_copy(update={"debug": debug})
+        self.judge_opts = TRAJECTORY_JUDGE_OPTIONS.model_copy(update={"debug": debug, "extra_body": None})
 
     def _score_candidate(self, description: str, candidate: str) -> int:
         prompt = _BON_USER_LM_PROMPT_TEMPLATE.format(description=description, response=candidate)
         messages = [{"role": "user", "content": prompt}]
         completion = sync_request_llm(self.cfg, messages, generation_config=self.judge_opts)
         reply = _get_msg_content(completion.choices[0].message)  # type: ignore[attr-defined]
+        
+        # Parse the score from the judge reply.
         match = re.search(r"<score>(\d+)</score>", reply or "")
-        return int(match.group(1)) if match else 0
+        score = int(match.group(1)) if match else 0
+        return score
 
     def next_message(self, intent: str, history: List[Turn]) -> str:
         """Generate the next user message via Best-of-N sampling."""
@@ -146,28 +152,28 @@ class SimulatedHuman:
         if self.bon_n <= 1:
             comp = sync_request_llm(self.cfg, messages, generation_config=self.agent_opts)
 
-            if self.debug:
-                m = comp.choices[0].message
-                print("[DEBUG/HUMAN] content:", repr(getattr(m, "content", "")))
-                print("[DEBUG/HUMAN] reasoning_content:", repr(getattr(m, "reasoning_content", "")))
+            # Debug output removed for cleaner logs
 
             raw = _get_msg_content(comp.choices[0].message)  # type: ignore[attr-defined]
             best_msg = raw if isinstance(raw, str) else ""
         else:
-            for _ in range(self.bon_n):
+            if self.debug:
+                print(f"[HUMAN] Using best-of-{self.bon_n} sampling...")
+            for i in range(self.bon_n):
                 comp = sync_request_llm(self.cfg, messages, generation_config=self.agent_opts)
 
-                if self.debug:
-                    m = comp.choices[0].message
-                    print("[DEBUG/HUMAN] content:", repr(getattr(m, "content", "")))
-                    print("[DEBUG/HUMAN] reasoning_content:", repr(getattr(m, "reasoning_content", "")))
+                # Debug output removed for cleaner logs
 
                 raw = _get_msg_content(comp.choices[0].message)  # type: ignore[attr-defined]
                 msg = raw if isinstance(raw, str) else ""
                 score = self._score_candidate(intent, msg) if msg else 0
                 candidates.append((msg, score))
+                if self.debug:
+                    print(f"[HUMAN] Candidate {i+1}: score={score}, msg='{msg[:50]}{'...' if len(msg) > 50 else ''}'")
             # choose best non-empty candidate
             best_msg = max(candidates, key=lambda x: x[1])[0]
+            if self.debug:
+                print(f"[HUMAN] Selected best candidate: '{best_msg[:50]}{'...' if len(best_msg) > 50 else ''}'")
 
         # Post-process to strip meta reflections like "Okay, the user wants …".
         if not best_msg:
@@ -287,14 +293,16 @@ class TrajectoryCollector:
         agent_cfg: LLMConfig,
         tools_schema: Optional[Dict[str, Any]] = None,
         debug: bool = False,
+        bon_n: int = 1,
     ):
         """Collect trajectories.
 
         tools_schema: full domain tool specification (same dict passed to blueprint
         generation).  Providing it allows the agent to see argument structure and
         increases the chance it will emit correct function calls.
+        bon_n: Best-of-N sampling for human simulation (1 = no sampling, >1 = generate N candidates and pick best)
         """
-        self.human = SimulatedHuman(human_cfg, debug=debug)
+        self.human = SimulatedHuman(human_cfg, bon_n=bon_n, debug=debug)
         self.agent = QwenTestAgent(agent_cfg)
         self.tools_schema = tools_schema or {}
         self.debug = debug
@@ -307,7 +315,7 @@ class TrajectoryCollector:
         tool_calls: List[ToolCalling] = []
 
         # Simulate turns (hard-coded max 20 to avoid infinite loop)
-        for _ in range(20):
+        for turn_num in range(1, 21):
             # 1) human speaks
             user_msg = self.human.next_message(blueprint.user_intent, history)
             if not user_msg:
@@ -316,6 +324,7 @@ class TrajectoryCollector:
                 return None
             history.append(Turn("user", user_msg))
             if self.debug:
+                print(f"\nTurn {turn_num}")
                 print("[USER]", user_msg)
             # Stop when the user injects the special token anywhere in the line
             if "###STOP###" in user_msg:
@@ -440,7 +449,7 @@ class TrajectoryCollector:
                     # standard assistant message
                     content = m.get("content", "")
                     history.append(Turn("assistant", content))
-                    if self.debug:
+                    if self.debug and content.strip():  # Only print non-empty content
                         print("[ASSISTANT]", content)
 
             # success check: all expected outputs present in assistant messages
