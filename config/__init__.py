@@ -1,11 +1,10 @@
 """Configuration loader for auto_mt_pipeline.
 
-This module provides a simple interface for loading and accessing configuration.
-It automatically loads the user's config.yaml file and merges it with sensible defaults.
+This module provides a simple interface for accessing configuration.
+Uses environment variables for sensitive data like API keys - much simpler than YAML parsing!
 """
 
 import os
-import yaml
 from pathlib import Path
 from typing import Dict, Any
 
@@ -16,52 +15,17 @@ from .defaults import (
     get_default_generation_options,
     DOMAIN_RULES, PERSONAS, SAMPLED_USER_DETAILS, SAMPLED_ORDERS, EXAMPLE_TASK
 )
+from .config import LLM_CONFIG, GENERATION_CONFIG, PIPELINE_CONFIG
 
 
 class Config:
-    """Configuration manager that loads user config and provides easy access to all settings."""
+    """Configuration manager that provides easy access to all settings using environment variables."""
     
-    def __init__(self, config_path: str = None):
-        """Initialize configuration.
-        
-        Args:
-            config_path: Path to config.yaml file. If None, looks for config.yaml 
-                        in the same directory as this module.
-        """
-        if config_path is None:
-            config_dir = Path(__file__).parent
-            config_path = config_dir / "config.yaml"
-        
-        self._user_config = self._load_yaml_config(config_path)
-        self._validate_config()
-    
-    def _load_yaml_config(self, config_path: Path) -> Dict[str, Any]:
-        """Load YAML configuration file."""
-        if not config_path.exists():
-            raise FileNotFoundError(
-                f"Configuration file not found: {config_path}\n"
-                f"Please create a config.yaml file. See config.yaml for an example."
-            )
-        
-        with open(config_path, 'r') as f:
-            config = yaml.safe_load(f)
-        
-        if not config:
-            raise ValueError(f"Configuration file is empty: {config_path}")
-        
-        return config
-    
-    def _validate_config(self):
-        """Validate required configuration sections."""
-        if "llm" not in self._user_config:
-            raise ValueError("Missing required 'llm' section in config.yaml")
-        
-        llm_config = self._user_config["llm"]
-        required_llm_fields = ["base_url", "model"]
-        
-        for field in required_llm_fields:
-            if field not in llm_config:
-                raise ValueError(f"Missing required LLM configuration field: {field}")
+    def __init__(self):
+        """Initialize configuration using environment variables and defaults."""
+        # Configuration is loaded from config.py which uses environment variables
+        # No need for complex YAML loading anymore!
+        pass
     
     # =========================================================================
     # LLM Configuration
@@ -70,11 +34,10 @@ class Config:
     @property
     def llm_config(self) -> LLMConfig:
         """Get LLM configuration."""
-        llm_settings = self._user_config["llm"]
         return LLMConfig(
-            base_url=llm_settings["base_url"],
-            model=llm_settings["model"],
-            api_key=llm_settings.get("api_key")
+            base_url=LLM_CONFIG["base_url"],
+            model=LLM_CONFIG["model"],
+            api_key=LLM_CONFIG["api_key"]
         )
     
     # =========================================================================
@@ -84,32 +47,32 @@ class Config:
     @property
     def blueprint_generation_options(self) -> GenerationOptions:
         """Get blueprint generation options with user overrides."""
-        return get_blueprint_generation_options(self._user_config)
+        return get_blueprint_generation_options(GENERATION_CONFIG)
     
     @property
     def blueprint_committee_options(self) -> GenerationOptions:
         """Get blueprint committee review options."""
-        return get_blueprint_committee_options(self._user_config)
+        return get_blueprint_committee_options(GENERATION_CONFIG)
     
     @property
     def trajectory_agent_options(self) -> GenerationOptions:
         """Get trajectory agent options with user overrides."""
-        return get_trajectory_agent_options(self._user_config)
+        return get_trajectory_agent_options(GENERATION_CONFIG)
     
     @property
     def assistant_agent_options(self) -> GenerationOptions:
         """Get retail assistant agent options with user overrides."""
-        return get_assistant_agent_options(self._user_config)
+        return get_assistant_agent_options(GENERATION_CONFIG)
     
     @property
     def trajectory_judge_options(self) -> GenerationOptions:
         """Get trajectory judge options."""
-        return get_trajectory_judge_options(self._user_config)
+        return get_trajectory_judge_options(GENERATION_CONFIG)
     
     @property
     def default_generation_options(self) -> GenerationOptions:
         """Get default generation options."""
-        return get_default_generation_options(self._user_config)
+        return get_default_generation_options(GENERATION_CONFIG)
     
     # =========================================================================
     # Pipeline Configuration
@@ -118,11 +81,10 @@ class Config:
     @property
     def pipeline_config(self) -> PipelineConfig:
         """Get pipeline configuration."""
-        pipeline_settings = self._user_config.get("pipeline", {})
         return PipelineConfig(
-            max_blueprint_attempts=pipeline_settings.get("max_blueprint_attempts", 5),
-            bon_n=pipeline_settings.get("bon_n", 3),
-            debug=pipeline_settings.get("debug", False)
+            max_blueprint_attempts=PIPELINE_CONFIG["max_blueprint_attempts"],
+            bon_n=PIPELINE_CONFIG["bon_n"],
+            debug=PIPELINE_CONFIG["debug"]
         )
     
 
