@@ -6,9 +6,9 @@
 # LLM Service Configuration (REQUIRED)
 # =============================================================================
 llm:
-  base_url: "http://127.0.0.1:12345/v1"  # Your OpenAI-compatible endpoint
-  model: "qwen-32b"                       # Model name or path
-  api_key: "tokenabc123"                  # API key (any string if server ignores auth)
+  base_url: "https://modelfactory.lenovo.com/service-large-168-1743666716725/llm/v1"  # Your OpenAI-compatible endpoint
+  model: "Qwen2.5-72B"                       # Model name or path
+  api_key: "AnpXAL97M888frrAHmrbHmrdFJs27wrKca776zmZ786zwPJ6MrdJ8Csr6p6wGB7RJ99xk41VF5FHrbrk8zFh86RH8p8bfnKSNrCDqjan8rTal6j2wsxV9lZrJ7VlRfPH" # API key (any string if server ignores auth)
 
 # =============================================================================
 # Generation Parameters (OPTIONAL - fine-tune if needed)
@@ -19,7 +19,7 @@ generation:
   blueprint_max_tokens: 8192
   
   # Trajectory collection - customer simulator (consistency for realistic behavior)
-  trajectory_temperature: 0.3
+  trajectory_temperature: 0.4
   trajectory_max_tokens: 4096
   
   # Retail assistant agent (balance between helpful and deterministic)
@@ -34,7 +34,7 @@ generation:
 # =============================================================================
 pipeline:
   max_blueprint_attempts: 5  # Max retries for blueprint generation
-  bon_n: 1                   # Best-of-N sampling for trajectory collection
+  bon_n: 3                   # Best-of-N sampling for trajectory collection
   debug: true                # Enable debug output for development
 
  

@@ -8,6 +8,34 @@ compact and editable. All prompts come from Fig.-11 and Fig.-12 of the paper
 real data later.
 """
 
+# Disable SSL verification globally to work around certificate issues with remote LLM endpoints
+import ssl
+import urllib3
+import warnings
+import httpx
+
+# Disable SSL warnings
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+warnings.filterwarnings('ignore', message='Unverified HTTPS request')
+
+# Monkey-patch httpx to disable SSL verification (this is what actually works for Qwen Agent)
+original_client_init = httpx.Client.__init__
+
+def patched_client_init(self, *args, **kwargs):
+    kwargs['verify'] = False
+    return original_client_init(self, *args, **kwargs)
+
+httpx.Client.__init__ = patched_client_init
+
+# Also patch AsyncClient in case it's used
+original_async_client_init = httpx.AsyncClient.__init__
+
+def patched_async_client_init(self, *args, **kwargs):
+    kwargs['verify'] = False
+    return original_async_client_init(self, *args, **kwargs)
+
+httpx.AsyncClient.__init__ = patched_async_client_init
+
 from dataclasses import dataclass
 import json
 import random

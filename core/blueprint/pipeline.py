@@ -310,11 +310,11 @@ You are an AI judge and your goal is to judge the quality and validity of the pr
 <scores>
 {{
     "reflection": str,
-    "correctness": int,  # 0/1
-    "completeness": int, # 0/1
-    "satisfaction": int, # 0/1
-    "creativity": int,   # 0/1
-    "total": int,        # 0-4
+    "correctness": int(0/1),
+    "completeness": int(0/1),
+    "satisfaction": int(0/1),
+    "creativity": int(0/1),
+    "total": int(0-4),
     "correction": str
 }}
 """.strip()

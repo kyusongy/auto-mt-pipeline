@@ -1,5 +1,5 @@
 {
-  "intent": "I am Emma Clark from ZIP 27513. I received my order #W2378156 and want to exchange the thermostat (item ID 4983901480) for a model that supports Alexa integration. The new item ID is 9234781052. I will use my PayPal account (payment method ID paypal_7845123) to cover any price difference. Confirm the exchange details and proceed.",
+  "intent": "You are Emma Clark in 27513. You placed a pending order #X9934712 for a pair of earbuds. Now you realize you prefer the black version instead of the white one. You want to modify the order to reflect this change. You are detail-oriented and want to ensure the modification is done correctly.",
   "actions": [
     {
       "name": "find_user_id_by_name_zip",
@@ -12,30 +12,30 @@
     {
       "name": "get_order_details",
       "arguments": {
-        "order_id": "#W2378156"
+        "order_id": "#X9934712"
       }
     },
     {
       "name": "get_product_details",
       "arguments": {
-        "product_id": "9234781052"
+        "product_id": "3311224488"
       }
     },
     {
       "name": "exchange_delivered_order_items",
       "arguments": {
-        "order_id": "#W2378156",
+        "order_id": "#X9934712",
         "item_ids": [
-          "4983901480"
+          "3311224488"
         ],
         "new_item_ids": [
-          "9234781052"
+          "3311224489"
         ],
-        "payment_method_id": "paypal_7845123"
+        "payment_method_id": "paypal_123456789"
       }
     }
   ],
   "outputs": [
-    "Your exchange request for order #W2378156 has been confirmed. A new item will be shipped once the returned item is received."
+    "Your order has been modified to include the black earbuds. The new item ID is 3311224489."
   ]
 }
