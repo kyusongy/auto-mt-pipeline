@@ -10,6 +10,7 @@ Instructions:
    if the corresponding environment variable is **not** set.
 """
 
+# Standard library imports
 import os
 
 # -----------------------------------------------------------------------------
@@ -17,12 +18,12 @@ import os
 # -----------------------------------------------------------------------------
 DEFAULT_LLM_BASE_URL = "https://api.openai.com/v1"  # <- change me if needed
 DEFAULT_LLM_MODEL = "gpt-4"                         # <- change me if needed
-DEFAULT_API_KEY = None                               # <- put key here (not recommended)
+DEFAULT_API_KEY = ""                                # <- put key here (not recommended)
 
 # -----------------------------------------------------------------------------
 # (2) LLM configuration – env vars win, otherwise fallback to defaults above
 # -----------------------------------------------------------------------------
-LLM_CONFIG = {
+llm_config = {
     "base_url": os.getenv("AUTO_MT_LLM_BASE_URL", DEFAULT_LLM_BASE_URL),
     "model": os.getenv("AUTO_MT_MODEL", DEFAULT_LLM_MODEL),
     "api_key": os.getenv("AUTO_MT_API_KEY", DEFAULT_API_KEY),
@@ -31,7 +32,7 @@ LLM_CONFIG = {
 # =============================================================================
 # Generation Parameters
 # =============================================================================
-GENERATION_CONFIG = {
+generation_config = {
     # Blueprint generation (creativity for diverse scenarios)
     "blueprint_temperature": 1.0,
     "blueprint_max_tokens": 8192,
@@ -51,7 +52,7 @@ GENERATION_CONFIG = {
 # =============================================================================
 # Pipeline Settings
 # =============================================================================
-PIPELINE_CONFIG = {
+pipeline_config = {
     "max_blueprint_attempts": 5,  # Max retries for blueprint generation
     "bon_n": 3,                   # Best-of-N sampling for trajectory collection
     "debug": True,                # Enable debug output for development
@@ -63,7 +64,7 @@ PIPELINE_CONFIG = {
 def validate_config():
     """Validate that required configuration values are present."""
 
-    if not LLM_CONFIG["api_key"]:
+    if not llm_config["api_key"]:
         raise ValueError(
             "Missing LLM API key.\n"
             "Please either:\n"
@@ -71,19 +72,19 @@ def validate_config():
             "  • edit DEFAULT_API_KEY in config/config.py"
         )
 
-    if not LLM_CONFIG["base_url"]:
+    if not llm_config["base_url"]:
         raise ValueError(
             "Missing LLM base URL.\n"
             "Please either set AUTO_MT_LLM_BASE_URL or edit DEFAULT_LLM_BASE_URL."
         )
 
     # Uncomment for verbose confirmation
-    # print("✅ Config OK →", {k: (v[:8] + '…' if k == 'api_key' and v else v) for k, v in LLM_CONFIG.items()})
+    # print("✅ Config OK →", {k: (v[:8] + '…' if k == 'api_key' and v else v) for k, v in llm_config.items()})
 
     print("✅ Configuration validated successfully")
-    print(f"   Using model: {LLM_CONFIG['model']}")
-    print(f"   Service URL: {LLM_CONFIG['base_url']}")
-    print(f"   API key: {LLM_CONFIG['api_key'][:10]}...")
+    print(f"   Using model: {llm_config['model']}")
+    print(f"   Service URL: {llm_config['base_url']}")
+    print(f"   API key: {llm_config['api_key'][:10]}...")
 
 # Auto-validate when imported
 if __name__ != "__main__":

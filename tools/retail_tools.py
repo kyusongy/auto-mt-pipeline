@@ -1,11 +1,11 @@
-from typing import Dict, Any, List
-
 """Dummy retail-domain APIs for prototyping APIGen-MT τ-bench case study.
 
 Only the **tool schema** is required by the blueprint/trajectory pipelines –
 actual Python callables are *not* executed in this demo.  Nevertheless, we
 provide placeholder functions so you can easily plug in real logic later.
 """
+
+from typing import Dict, Any, List
 
 # ---------------------------------------------------------------------------
 # Tool schema (OpenAI / function-calling compliant)

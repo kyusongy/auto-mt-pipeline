@@ -28,6 +28,7 @@ environment) are simplified or stubbed out – the focus is to provide a clear
 end-to-end skeleton you can extend.
 """
 
+# Standard library imports
 from dataclasses import dataclass
 import json
 import random
@@ -35,8 +36,10 @@ import re
 import textwrap
 from typing import Any, Dict, List, Optional, Tuple
 
+# Third-party imports
 from openai.types.chat import ChatCompletionMessageParam
 
+# Local application imports
 from config import (
     GenerationOptions as LLMGenerationOptions,
     LLMConfig,

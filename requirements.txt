@@ -1,18 +1,29 @@
 # Auto MT Pipeline Dependencies
-# Reorganized from LLM-Application codebase
 
-# Core dependencies
-openai>=1.0.0
-pydantic>=2.0.0
-httpx
-rich
-PyYAML>=6.0
 
-# Qwen Agent integration
-qwen-agent
-python-dateutil>=2.8.0
+# Core LLM and API dependencies
+openai>=1.90.0,<2.0.0
+httpx>=0.28.0,<1.0.0
 
-# Development dependencies (optional)
-pytest
-black
-flake8
+# Data validation and models  
+pydantic>=2.11.0,<3.0.0
+
+# Console output and formatting
+rich>=13.0.0
+
+# Qwen Agent integration (trajectory collection)
+qwen-agent>=0.0.27
+
+# Network and SSL handling (used by trajectory pipeline)
+urllib3>=2.0.0
+
+# Configuration and data handling
+PyYAML>=6.0.0
+
+# Optional development and testing dependencies
+pytest>=7.0.0
+black>=23.0.0
+flake8>=6.0.0
+
+# Python version requirement
+# Requires Python 3.10+

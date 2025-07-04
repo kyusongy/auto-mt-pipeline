@@ -8,12 +8,21 @@ compact and editable. All prompts come from Fig.-11 and Fig.-12 of the paper
 real data later.
 """
 
-# Disable SSL verification globally to work around certificate issues with remote LLM endpoints
+# Standard library imports
 import ssl
 import urllib3
 import warnings
+from dataclasses import dataclass
+import json
+import random
+import re
+import textwrap
+from typing import Any, Dict, List, Optional, Tuple
+
+# Third-party imports
 import httpx
 
+# Disable SSL verification globally to work around certificate issues with remote LLM endpoints
 # Disable SSL warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 warnings.filterwarnings('ignore', message='Unverified HTTPS request')
@@ -36,13 +45,10 @@ def patched_async_client_init(self, *args, **kwargs):
 
 httpx.AsyncClient.__init__ = patched_async_client_init
 
-from dataclasses import dataclass
-import json
-import random
-import re
-import textwrap
-from typing import Any, Dict, List, Optional, Tuple
+# Third-party imports (continued)
+from qwen_agent.agents import Assistant  # type: ignore
 
+# Local application imports
 from config import (
     LLMConfig,
     GenerationOptions as LLMGenOpts,
@@ -54,9 +60,6 @@ from core.models import ToolCalling
 from core.llm_client import sync_request_llm
 from core.blueprint.pipeline import Blueprint  # reuse dataclass from phase-1
 
-# ---------------- Qwen-Agent integration -----------------
-# pylint: disable=import-error
-from qwen_agent.agents import Assistant  # type: ignore
 # Ensure tool wrappers are registered before Assistant is instantiated
 import core.trajectory.qwen_tool_wrappers  # noqa: F401  # registers tools via import side-effects
 from tools.retail_tools import RUNTIME_FUNCTIONS  # provides callable stubs for tool execution

@@ -1,10 +1,13 @@
+# Standard library imports
 from typing import Iterable, Optional
 
+# Third-party imports
 import rich
+import httpx
 from openai import OpenAI
 from openai.types.chat import ChatCompletion, ChatCompletionToolParam, ChatCompletionMessageParam
-import httpx
 
+# Local application imports
 from config import LLMConfig, GenerationOptions as LLMGenerationOptions
 
 

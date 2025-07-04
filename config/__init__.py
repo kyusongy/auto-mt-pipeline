@@ -4,10 +4,12 @@ This module provides a simple interface for accessing configuration.
 Uses environment variables for sensitive data like API keys - much simpler than YAML parsing!
 """
 
+# Standard library imports
 import os
 from pathlib import Path
 from typing import Dict, Any
 
+# Local application imports
 from .defaults import (
     LLMConfig, PipelineConfig, GenerationOptions,
     get_blueprint_generation_options, get_blueprint_committee_options,
@@ -15,7 +17,7 @@ from .defaults import (
     get_default_generation_options,
     DOMAIN_RULES, PERSONAS, SAMPLED_USER_DETAILS, SAMPLED_ORDERS, EXAMPLE_TASK
 )
-from .config import LLM_CONFIG, GENERATION_CONFIG, PIPELINE_CONFIG
+from .config import llm_config, generation_config, pipeline_config
 
 
 class Config:
@@ -35,9 +37,9 @@ class Config:
     def llm_config(self) -> LLMConfig:
         """Get LLM configuration."""
         return LLMConfig(
-            base_url=LLM_CONFIG["base_url"],
-            model=LLM_CONFIG["model"],
-            api_key=LLM_CONFIG["api_key"]
+            base_url=llm_config["base_url"],
+            model=llm_config["model"],
+            api_key=llm_config["api_key"]
         )
     
     # =========================================================================
@@ -47,32 +49,32 @@ class Config:
     @property
     def blueprint_generation_options(self) -> GenerationOptions:
         """Get blueprint generation options with user overrides."""
-        return get_blueprint_generation_options(GENERATION_CONFIG)
+        return get_blueprint_generation_options(generation_config)
     
     @property
     def blueprint_committee_options(self) -> GenerationOptions:
         """Get blueprint committee review options."""
-        return get_blueprint_committee_options(GENERATION_CONFIG)
+        return get_blueprint_committee_options(generation_config)
     
     @property
     def trajectory_agent_options(self) -> GenerationOptions:
         """Get trajectory agent options with user overrides."""
-        return get_trajectory_agent_options(GENERATION_CONFIG)
+        return get_trajectory_agent_options(generation_config)
     
     @property
     def assistant_agent_options(self) -> GenerationOptions:
         """Get retail assistant agent options with user overrides."""
-        return get_assistant_agent_options(GENERATION_CONFIG)
+        return get_assistant_agent_options(generation_config)
     
     @property
     def trajectory_judge_options(self) -> GenerationOptions:
         """Get trajectory judge options."""
-        return get_trajectory_judge_options(GENERATION_CONFIG)
+        return get_trajectory_judge_options(generation_config)
     
     @property
     def default_generation_options(self) -> GenerationOptions:
         """Get default generation options."""
-        return get_default_generation_options(GENERATION_CONFIG)
+        return get_default_generation_options(generation_config)
     
     # =========================================================================
     # Pipeline Configuration
@@ -82,9 +84,9 @@ class Config:
     def pipeline_config(self) -> PipelineConfig:
         """Get pipeline configuration."""
         return PipelineConfig(
-            max_blueprint_attempts=PIPELINE_CONFIG["max_blueprint_attempts"],
-            bon_n=PIPELINE_CONFIG["bon_n"],
-            debug=PIPELINE_CONFIG["debug"]
+            max_blueprint_attempts=pipeline_config["max_blueprint_attempts"],
+            bon_n=pipeline_config["bon_n"],
+            debug=pipeline_config["debug"]
         )
     
 
@@ -174,11 +176,6 @@ TRAJECTORY_AGENT_OPTIONS = config.TRAJECTORY_AGENT_OPTIONS
 ASSISTANT_AGENT_OPTIONS = config.ASSISTANT_AGENT_OPTIONS
 TRAJECTORY_JUDGE_OPTIONS = config.TRAJECTORY_JUDGE_OPTIONS
 DEFAULT_GENERATION_OPTIONS = config.DEFAULT_GENERATION_OPTIONS
-DOMAIN_RULES = config.DOMAIN_RULES
-PERSONAS = config.PERSONAS
-SAMPLED_USER_DETAILS = config.SAMPLED_USER_DETAILS
-SAMPLED_ORDERS = config.SAMPLED_ORDERS
-EXAMPLE_TASK = config.EXAMPLE_TASK
 DEFAULT_PIPELINE_CONFIG = config.DEFAULT_PIPELINE_CONFIG
 
 __all__ = [
@@ -198,6 +195,6 @@ __all__ = [
     "EXAMPLE_TASK",
     "DEFAULT_PIPELINE_CONFIG",
     "LLMConfig",
-    "GenerationOptions",
     "PipelineConfig",
+    "GenerationOptions",
 ]

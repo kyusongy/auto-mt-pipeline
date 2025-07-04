@@ -15,13 +15,11 @@ Usage:
 Configure your LLM endpoint in config/llm_config.py.
 """
 
+# Standard library imports
 import json
 from pathlib import Path
-import sys
 
-# Ensure the current directory is on sys.path
-sys.path.insert(0, str(Path(__file__).parent))
-
+# Local application imports
 from config import (
     DEFAULT_LLM_CONFIG,
     BLUEPRINT_GENERATION_OPTIONS,
@@ -41,12 +39,12 @@ from tools.retail_tools import TOOLS_SCHEMA
 # ---------------------------------------------------------------------------
 
 # Use centralized configuration
-LLM_CONFIG = DEFAULT_LLM_CONFIG
-PIPELINE_CONFIG = DEFAULT_PIPELINE_CONFIG
+llm_config = DEFAULT_LLM_CONFIG
+pipeline_config = DEFAULT_PIPELINE_CONFIG
 
 # Output configuration
-OUTPUT_DIR = Path("data")
-OUTPUT_DIR.mkdir(exist_ok=True)
+output_dir = Path("data")
+output_dir.mkdir(exist_ok=True)
 
 # Enable debug output from blueprint generation
 import core.blueprint.pipeline as bp_pipeline
@@ -67,10 +65,10 @@ def main():
     print("-" * 40)
     
     blueprint = generate_valid_blueprint(
-        LLM_CONFIG,
+        llm_config,
         TOOLS_SCHEMA,
         PERSONAS,
-        max_attempts=PIPELINE_CONFIG.max_blueprint_attempts,
+        max_attempts=pipeline_config.max_blueprint_attempts,
         prompt_kwargs={
             "domain_rules": DOMAIN_RULES,
             "sampled_user_details": SAMPLED_USER_DETAILS,
@@ -96,7 +94,7 @@ def main():
     print(json.dumps(blueprint_data, indent=2, ensure_ascii=False))
     
     # Save blueprint for inspection
-    blueprint_file = OUTPUT_DIR / "blueprint.json"
+    blueprint_file = output_dir / "blueprint.json"
     blueprint_file.write_text(json.dumps(blueprint_data, indent=2, ensure_ascii=False))
     print(f"\n💾 Blueprint saved to: {blueprint_file}")
 
@@ -109,11 +107,11 @@ def main():
         return False
 
     collector = TrajectoryCollector(
-        LLM_CONFIG,  # human_cfg
-        LLM_CONFIG,  # agent_cfg
+        llm_config,  # human_cfg
+        llm_config,  # agent_cfg
         tools_schema=TOOLS_SCHEMA,
-        debug=PIPELINE_CONFIG.debug,
-        bon_n=PIPELINE_CONFIG.bon_n,  # Enable best-of-N sampling
+        debug=pipeline_config.debug,
+        bon_n=pipeline_config.bon_n,  # Enable best-of-N sampling
     )
     
     trajectory = collector.collect(blueprint)
@@ -143,7 +141,7 @@ def main():
             }
         }
         
-        trajectory_file = OUTPUT_DIR / "trajectory.json"
+        trajectory_file = output_dir / "trajectory.json"
         trajectory_file.write_text(json.dumps(trajectory_data, indent=2, ensure_ascii=False))
         print(f"\n💾 Complete trajectory saved to: {trajectory_file}")
         
@@ -152,7 +150,7 @@ def main():
         return False
 
     print("\n🎉 Pipeline completed successfully!")
-    print(f"📁 Check {OUTPUT_DIR}/ for output files")
+    print(f"📁 Check {output_dir}/ for output files")
     return True
 
 
