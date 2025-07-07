@@ -93,29 +93,29 @@ def _build_generator_prompt(
         Generate a task instruction that mimics realistic human users and their intentions, such as with different personality and goals. The task instruction should be
         followed by `actions` which is a list of the tool_calls to be taken to solve this task and `outputs` which is a list of the answers to specific information requests made
         by the user. Think step by step to come up with the action(s) and the corresponding tool_call(s) translating this thought that would be necessary to fulfil the user's
-        request or solve their intentions. Focus on common retail scenarios following the provided task instruction guidelines.
+        request or solve their intentions. Focus on common Lenovo customer scenarios following the provided task instruction guidelines.
 
         ## Guidelines for Generating Task Instruction (q)
         {task_rules + domain_rules}
 
         ## VERY IMPORTANT: The instruction (intent) MUST explicitly mention
         *every* concrete identifier or value that the assistant will need
-        later, such as order_id, user_id, item names, quantities, dates,
-        etc.  This allows a simulated human to converse naturally WITHOUT
+        later, such as user_id, product names, model numbers, budget ranges,
+        usage scenarios, etc.  This allows a simulated human to converse naturally WITHOUT
         hallucinating any missing details.
 
         ## User Data
         {sampled_user_details}
 
-        ## Order Data
+        ## Purchase History Data
         {sampled_orders}
 
         ## Guidelines for generating Groundtruth Actions (a_g t)
-        1.  The main focus is to generate actions that can modify the underlying database.
-        2.  For actions that do not modify the database like specific information requests, scan the provided User Data directly and append only the answer in `outputs` (o_g t). Do not make separate tool calls for this in `actions`.
-        3.  Include multiple tool calls when the scenario requires multiple steps or modifications.
+        1.  The main focus is to generate actions that help users with Lenovo products and services.
+        2.  For actions that provide information requests, use appropriate tools like product_recommend, product_knowledge_retrieval, etc.
+        3.  Include multiple tool calls when the scenario requires comprehensive assistance (e.g., product recommendation + parameter comparison).
         4.  Provide precise tool calls with all necessary parameters for each action.
-        5.  Ensure all actions adhere to retail policies and common sense practices.
+        5.  Ensure all actions adhere to Lenovo service policies and help users make informed decisions.
 
         ## Tools
         The available tool combination in Python format is as follows:
@@ -290,7 +290,6 @@ You are an AI judge and your goal is to judge the quality and validity of the pr
 • The task object contains an `intent` (q) from a user, `actions` (a_g t), and `outputs` (o_g t).
 • The `actions` correspond to the tool_calls made by an AI assistant to satisfy the instruction.
 • A description of the `tools` available to the AI assistant is provided.
-• The `diff_patch` is the difference in the database state after the tool_calls are made. It should only reflect changes corresponding to the `intent`. There should be no extraneous changes. If the `diff_patch` is empty, it means that the tool_calls did not change the database state, which is possible if the instruction was to provide information only.
 • Perform a brief reflection on the task based on the below Rubrics.
 • Think step-by-step to generate a score of 0 or 1 for each of these criteria (1 means follows criterion and 0 means does not)
 
@@ -306,8 +305,6 @@ You are an AI judge and your goal is to judge the quality and validity of the pr
 ## Tools in Python format
 {tools}
 
-## Diff Patch
-{diff_patch}
 
 ## Output format
 <scores>
@@ -355,7 +352,6 @@ class ReviewCommittee:
         prompt = _REVIEW_PROMPT_TEMPLATE.format(
             task=task_json,
             tools=tools_json,
-            diff_patch="",  # placeholder – no environment diff in prototype
         )
         return [{"role": "user", "content": prompt}]
 

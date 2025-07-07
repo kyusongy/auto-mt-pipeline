@@ -17,7 +17,7 @@ from .defaults import (
     get_default_generation_options,
     DOMAIN_RULES, PERSONAS, SAMPLED_USER_DETAILS, SAMPLED_ORDERS, EXAMPLE_TASK
 )
-from .config import llm_config, generation_config, pipeline_config
+from .config import llm_config, generation_config, pipeline_config, mcp_config
 
 
 class Config:

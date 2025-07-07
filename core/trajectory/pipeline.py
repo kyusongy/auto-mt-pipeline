@@ -93,7 +93,7 @@ _BON_USER_LM_PROMPT_TEMPLATE = textwrap.dedent(
     """
     You are a fair judge and an expert in following details.
 
-    A human is interacting with a retail assistant to get help on solving their task. You are provided with the description of the human and the task the
+    A human is interacting with a Lenovo sales assistant to get help on solving their task. You are provided with the description of the human and the task the
     human wants to accomplish (wrapped with <description></description>), and a candidate response (wrapped with <response></response>) the human wants to
     give the assistant. Please help the human evaluate this candidate response, give an integer score (ranging from 0 to 10) to indicate the correctness of the response,
     higher score means better quality.
@@ -230,7 +230,7 @@ class SimulatedHuman:
 class QwenTestAgent:
     """Wrap Qwen-Agent's `Assistant` for our trajectory collector."""
 
-    def __init__(self, llm_cfg: LLMConfig, generation_opts: LLMGenOpts = None):
+    def __init__(self, llm_cfg: LLMConfig, generation_opts: LLMGenOpts = None, tool_names: Optional[List[str]] = None):
         # Import registry after wrappers have been imported so tools are present.
         from tools import retail_tools as _d
 
@@ -253,9 +253,15 @@ class QwenTestAgent:
         if generation_opts.top_p:
             llm_config["top_p"] = generation_opts.top_p
             
+        # Determine which tools to expose to the assistant.  If `tool_names` is
+        # provided we use that (e.g. MCP tool list passed from TrajectoryCollector);
+        # otherwise fall back to the dummy retail tools.
+        if tool_names is None:
+            tool_names = list(_d.TOOLS_SCHEMA.keys())
+
         self.bot = Assistant(
             llm=llm_config,
-            function_list=list(_d.TOOLS_SCHEMA.keys()),  # expose only dummy tools to avoid heavy deps
+            function_list=tool_names,
             system_message=_AGENT_SYSTEM_PROMPT,  # Use our retail domain system prompt
         )
 
@@ -282,51 +288,26 @@ class QwenTestAgent:
 
 
 # ---------------------------------------------------------------------------
-# Default system prompt for Qwen retail agent
+# Default system prompt for Lenovo sales assistant
 # ---------------------------------------------------------------------------
 
 _AGENT_SYSTEM_PROMPT = (
-    "# Retail agent policy\n"
-    "As a retail agent, you can help users cancel or modify pending orders, return or exchange delivered orders, modify their default user address, or provide information about their own profile, orders, and related products.\n"
-    "- At the beginning of the conversation, you have to authenticate the user identity by locating their user id via email, or via name + zip code. This has to be done even when the user already provides the user id.\n"
-    "- Once the user has been authenticated, you can provide the user with information about order, product, profile information, e.g. help the user look up order id.\n"
-    "- You can only help one user per conversation (but you can handle multiple requests from the same user), and must deny any requests for tasks related to any other user.\n"
-    "- Before taking consequential actions that update the database (cancel, modify, return, exchange), you have to list the action detail and obtain explicit user confirmation (yes) to proceed.\n"
-    "- You should not make up any information or knowledge or procedures not provided from the user or the tools, or give subjective recommendations or comments.\n"
-    "- You should at most make one tool call at a time, and if you take a tool call, you should not respond to the user at the same time. If you respond to the user, you should not make a tool call.\n"
-    "- You should transfer the user to a human agent if and only if the request cannot be handled within the scope of your actions.\n\n"
-    "## Domain basic\n"
-    "- All times in the database are EST and 24 hour based. For example \"02:30:00\" means 2:30 AM EST.\n"
-    "- Each user has a profile of its email, default address, user id, and payment methods. Each payment method is either a gift card, a paypal account, or a credit card.\n"
-    "- Our retail store has 50 types of products. For each type of product, there are variant items of different options. For example, for a 't shirt' product, there could be an item with option 'color blue size M', and another item with option 'color red size L'.\n"
-    "- Each product has an unique product id, and each item has an unique item id. They have no relations and should not be confused.\n"
-    "- Each order can be in status 'pending', 'processed', 'delivered', or 'cancelled'. Generally, you can only take action on pending or delivered orders.\n"
-    "- Exchange or modify order tools can only be called once. Be sure that all items to be changed are collected into a list before making the tool call!!!\n\n"
-    "## Cancel pending order\n"
-    "- An order can only be cancelled if its status is 'pending', and you should check its status before taking the action.\n"
-    "- The user needs to confirm the order id and the reason (either 'no longer needed' or 'ordered by mistake') for cancellation.\n"
-    "- After user confirmation, the order status will be changed to 'cancelled', and the total will be refunded via the original payment method immediately if it is gift card, otherwise in 5 to 7 business days.\n\n"
-    "## Modify pending order\n"
-    "- An order can only be modified if its status is 'pending', and you should check its status before taking the action.\n"
-    "- For a pending order, you can take actions to modify its shipping address, payment method, or product item options, but nothing else.\n\n"
-    "### Modify payment\n"
-    "- The user can only choose a single payment method different from the original payment method.\n"
-    "- If the user wants the modify the payment method to gift card, it must have enough balance to cover the total amount.\n"
-    "- After user confirmation, the order status will be kept 'pending'. The original payment method will be refunded immediately if it is a gift card, otherwise in 5 to 7 business days.\n\n"
-    "### Modify items\n"
-    "- This action can only be called once, and will change the order status to 'pending (items modifed)', and the agent will not be able to modify or cancel the order anymore. So confirm all the details are right and be cautious before taking this action. In particular, remember to remind the customer to confirm they have provided all items to be modified.\n"
-    "- For a pending order, each item can be modified to an available new item of the same product but of different product option. There cannot be any change of product types, e.g. modify shirt to shoe.\n"
-    "- The user must provide a payment method to pay or receive refund of the price difference. If the user provides a gift card, it must have enough balance to cover the price difference.\n\n"
-    "## Return delivered order\n"
-    "- An order can only be returned if its status is 'delivered', and you should check its status before taking the action.\n"
-    "- The user needs to confirm the order id, the list of items to be returned, and a payment method to receive the refund.\n"
-    "- The refund must either go to the original payment method, or an existing gift card.\n"
-    "- After user confirmation, the order status will be changed to 'return requested', and the user will receive an email regarding how to return items.\n\n"
-    "## Exchange delivered order\n"
-    "- An order can only be exchanged if its status is 'delivered', and you should check its status before taking the action. In particular, remember to remind the customer to confirm they have provided all items to be exchanged.\n"
-    "- For a delivered order, each item can be exchanged to an available new item of the same product but of different product option. There cannot be any change of product types, e.g. modify shirt to shoe.\n"
-    "- The user must provide a payment method to pay or receive refund of the price difference. If the user provides a gift card, it must have enough balance to cover the price difference.\n"
-    "- After user confirmation, the order status will be changed to 'exchange requested', and the user will receive an email regarding how to return items. There is no need to place a new order.\n"
+    "# 联想官网销售助手\n"
+    "您是联想官网的销售助手，专注于帮助用户进行产品咨询和推荐。\n\n"
+    "## 工作方式\n"
+    "- 用户询问产品时，直接使用工具查询推荐，无需预先验证身份\n"
+    "- 根据用户需求调用合适的工具，如product_recommend、product_knowledge_retrieval等\n"
+    "- 当工具返回\"没有找到合适的推荐商品\"时，礼貌建议用户调整需求条件\n"
+    "- 保持友好自然的对话，专注于产品推荐和信息查询\n\n"
+    "## 主要产品线\n"
+    "### 台式机: 扬天、天逸、小新、YOGA、拯救者、ThinkStation、ThinkCentre、GeekPro、来酷\n"
+    "### 平板: 拯救者、小新、YOGA、启天、异能者\n"
+    "### 其他: 笔记本、显示器、配件等\n\n"
+    "## 服务原则\n"
+    "- 快速响应用户产品咨询需求\n"
+    "- 使用工具获取准确的产品信息\n"
+    "- 根据用户反馈逐步优化推荐\n"
+    "- 无法解决时建议联系人工客服\n"
 )
 
 # ---------------------------------------------------------------------------
@@ -351,11 +332,15 @@ class TrajectoryCollector:
         bon_n: Best-of-N sampling for human simulation (1 = no sampling, >1 = generate N candidates and pick best)
         """
         self.human = SimulatedHuman(human_cfg, bon_n=bon_n, debug=debug)
-        self.agent = QwenTestAgent(agent_cfg, ASSISTANT_AGENT_OPTIONS)
+        self.agent = QwenTestAgent(
+            agent_cfg,
+            ASSISTANT_AGENT_OPTIONS,
+            tool_names=list((tools_schema or {}).keys()) if tools_schema else None,
+        )
         self.tools_schema = tools_schema or {}
         self.debug = debug
 
-        # Always use the predefined retail-agent policy
+        # Always use the predefined Lenovo sales assistant policy
         self.agent_system_prompt = _AGENT_SYSTEM_PROMPT
 
     def collect(self, blueprint: Blueprint) -> Optional[Trajectory]:
@@ -464,41 +449,54 @@ class TrajectoryCollector:
 
             new_msgs = self.agent.respond(messages_for_agent, tools_schema_list)
 
+            # Process agent response properly - ensure clean flow
+            # Expected: assistant message with function_call, then function result, then assistant response
+            agent_content = ""
+            function_calls_in_turn = []
+            
             for idx, m in enumerate(new_msgs):
                 role = m.get("role")
+                
                 if role == "assistant" and "function_call" in m:
+                    # Agent wants to call a function
                     fc = m["function_call"]
-                    # `function_call.arguments` might come as *string* (JSON) per
-                    # OpenAI spec.  Convert to dict so ToolCalling passes
-                    # Pydantic validation.
                     raw_args = fc.get("arguments", {})
                     if isinstance(raw_args, str):
                         try:
                             raw_args = json.loads(raw_args)
                         except json.JSONDecodeError:
-                            # leave as-is; validator will flag it later
-                            pass
+                            raw_args = {}
 
-                    val = json.dumps({"name": fc.get("name"), "arguments": json.dumps(raw_args, ensure_ascii=False)}, ensure_ascii=False)
+                    tool_name = fc.get("name")
+                    val = json.dumps({"name": tool_name, "arguments": json.dumps(raw_args, ensure_ascii=False)}, ensure_ascii=False)
+                    
+                    # Add function call to history
                     history.append(Turn("function_call", val))
-                    tool_calls.append(ToolCalling(name=fc.get("name"), arguments=raw_args))
+                    tool_calls.append(ToolCalling(name=tool_name, arguments=raw_args))
+                    function_calls_in_turn.append(tool_name)
+                    
                     if self.debug:
                         print("[FUNC_CALL]", val)
 
-                    # Skip adding a synthetic observation; rely solely on
-                    # the agent-emitted "function" message (if any) to carry
-                    # tool results. Removing redundancy keeps the turn log
-                    # clean and mirrors real OpenAI behaviour.
                 elif role == "function":
-                    history.append(Turn("observation", m.get("content", "")))
+                    # Function execution result - this should come from our MCP client
+                    observation_content = m.get("content", "")
+                    history.append(Turn("observation", observation_content))
                     if self.debug:
-                        print("[OBSERV]", m.get("content", ""))
-                else:
-                    # standard assistant message
-                    content = m.get("content", "")
-                    history.append(Turn("assistant", content))
-                    if self.debug and content.strip():  # Only print non-empty content
-                        print("[ASSISTANT]", content)
+                        print(f"[OBSERV] Function result for {function_calls_in_turn[-1] if function_calls_in_turn else 'unknown'}:")
+                        print("[OBSERV]", observation_content)
+                        
+                elif role == "assistant":
+                    # Regular assistant response - only add if it has meaningful content
+                    content = m.get("content", "").strip()
+                    if content:
+                        agent_content = content
+            
+            # Add final assistant response if we have one and it's not empty
+            if agent_content:
+                history.append(Turn("assistant", agent_content))
+                if self.debug:
+                    print("[ASSISTANT]", agent_content)
 
             # success check: all expected outputs present in assistant messages
             if any(isinstance(t.content, str) and any(o in t.content for o in blueprint.expected_outputs) for t in history if t.role == "assistant"):

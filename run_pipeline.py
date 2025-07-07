@@ -29,10 +29,11 @@ from config import (
     SAMPLED_ORDERS,
     EXAMPLE_TASK,
     DEFAULT_PIPELINE_CONFIG,
+    mcp_config,
 )
 from core.blueprint.pipeline import generate_valid_blueprint
 from core.trajectory.pipeline import TrajectoryCollector
-from tools.retail_tools import TOOLS_SCHEMA
+from core.mcp_client import MCPClient, MCPConfig, get_mcp_tool_schemas
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -54,11 +55,47 @@ bp_pipeline.GenerationOptions = lambda **kwargs: BLUEPRINT_GENERATION_OPTIONS.mo
 # Main Pipeline
 # ---------------------------------------------------------------------------
 
+def get_tool_schemas():
+    """Get tool schemas - try MCP first, fallback to dummy tools."""
+    if not mcp_config["enabled"]:
+        print("🔌 MCP integration disabled - using dummy tools")
+        from tools.retail_tools import TOOLS_SCHEMA
+        return TOOLS_SCHEMA, None
+        
+    try:
+        executor_url = mcp_config["executor_url"]
+        print(f"🔗 Connecting to MCP executor at {executor_url}")
+        mcp_client_config = MCPConfig(executor_url=executor_url)
+        mcp_client = MCPClient(mcp_client_config)
+        
+        # Get filtered schemas (without MCP-injected parameters)
+        schemas = get_mcp_tool_schemas(mcp_client)
+        
+        if schemas:
+            print(f"✅ Loaded {len(schemas)} tools from MCP service:")
+            for name, schema in schemas.items():
+                print(f"   - {name}: {schema.get('description', 'No description')[:60]}...")
+            return schemas, mcp_client
+        else:
+            raise Exception("No tools returned from MCP service")
+            
+    except Exception as e:
+        print(f"⚠️  MCP connection failed: {e}")
+        print("📦 Falling back to dummy retail tools...")
+        
+        # Fallback to dummy tools
+        from tools.retail_tools import TOOLS_SCHEMA
+        return TOOLS_SCHEMA, None
+
+
 def main():
     """Run the complete MT pipeline."""
     print("="*60)
-    print("🚀 Auto MT Pipeline - Reorganized APIGen-MT")
+    print("🚀 Auto MT Pipeline - MCP Integration")
     print("="*60)
+    
+    # Get tool schemas (MCP or fallback)
+    tools_schema, mcp_client = get_tool_schemas()
     
     # Phase 1: Generate validated blueprint
     print("\n📋 Phase 1: Blueprint Generation & Validation")
@@ -66,7 +103,7 @@ def main():
     
     blueprint = generate_valid_blueprint(
         llm_config,
-        TOOLS_SCHEMA,
+        tools_schema,
         PERSONAS,
         max_attempts=pipeline_config.max_blueprint_attempts,
         prompt_kwargs={
@@ -106,10 +143,19 @@ def main():
         print("\n❌ Blueprint generation failed – skipping trajectory collection.")
         return False
 
+    # Configure trajectory collector with MCP if available
+    if mcp_client:
+        print("🔗 Using MCP tools for trajectory collection")
+        # Update Qwen tool wrappers to use our MCP client
+        from core.trajectory.qwen_tool_wrappers import initialize_mcp_client
+        initialize_mcp_client()  # Will use config automatically
+    else:
+        print("📦 Using dummy tools for trajectory collection")
+
     collector = TrajectoryCollector(
         llm_config,  # human_cfg
         llm_config,  # agent_cfg
-        tools_schema=TOOLS_SCHEMA,
+        tools_schema=tools_schema,
         debug=pipeline_config.debug,
         bon_n=pipeline_config.bon_n,  # Enable best-of-N sampling
     )
@@ -126,7 +172,9 @@ def main():
                 tag = "ASSISTANT"
             else:
                 tag = t.role.upper()
-            print(f"[{tag}] {t.content}")
+            # Only show non-system messages for readability
+            if t.role != "system":
+                print(f"[{tag}] {t.content}")
         
         # Save complete trajectory  
         trajectory_data = {
@@ -138,6 +186,7 @@ def main():
             "metadata": {
                 "total_turns": len(trajectory.turns),
                 "tool_calls_made": len(trajectory.tool_calls),
+                "used_mcp": mcp_client is not None
             }
         }
         
@@ -151,6 +200,8 @@ def main():
 
     print("\n🎉 Pipeline completed successfully!")
     print(f"📁 Check {output_dir}/ for output files")
+    if mcp_client:
+        print("🔗 MCP integration was used successfully")
     return True
 
 

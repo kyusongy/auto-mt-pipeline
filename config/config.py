@@ -20,6 +20,9 @@ DEFAULT_LLM_BASE_URL = "https://api.openai.com/v1"  # <- change me if needed
 DEFAULT_LLM_MODEL = "gpt-4"                         # <- change me if needed
 DEFAULT_API_KEY = ""                                # <- put key here (not recommended)
 
+# MCP Integration defaults
+DEFAULT_MCP_EXECUTOR_URL = "http://10.110.130.250:15000"  # <- AgentCortex executor URL
+
 # -----------------------------------------------------------------------------
 # (2) LLM configuration – env vars win, otherwise fallback to defaults above
 # -----------------------------------------------------------------------------
@@ -27,6 +30,14 @@ llm_config = {
     "base_url": os.getenv("AUTO_MT_LLM_BASE_URL", DEFAULT_LLM_BASE_URL),
     "model": os.getenv("AUTO_MT_MODEL", DEFAULT_LLM_MODEL),
     "api_key": os.getenv("AUTO_MT_API_KEY", DEFAULT_API_KEY),
+}
+
+# =============================================================================
+# MCP Configuration
+# =============================================================================
+mcp_config = {
+    "executor_url": os.getenv("AUTO_MT_MCP_EXECUTOR_URL", DEFAULT_MCP_EXECUTOR_URL),
+    "enabled": os.getenv("AUTO_MT_MCP_ENABLED", "true").lower() == "true",
 }
 
 # =============================================================================
@@ -54,7 +65,7 @@ generation_config = {
 # =============================================================================
 pipeline_config = {
     "max_blueprint_attempts": 5,  # Max retries for blueprint generation
-    "bon_n": 3,                   # Best-of-N sampling for trajectory collection
+    "bon_n": 1,                   # Best-of-N sampling for trajectory collection
     "debug": True,                # Enable debug output for development
 }
 
@@ -85,6 +96,11 @@ def validate_config():
     print(f"   Using model: {llm_config['model']}")
     print(f"   Service URL: {llm_config['base_url']}")
     print(f"   API key: {llm_config['api_key'][:10]}...")
+    
+    if mcp_config["enabled"]:
+        print(f"   MCP enabled: {mcp_config['executor_url']}")
+    else:
+        print("   MCP disabled - using dummy tools")
 
 # Auto-validate when imported
 if __name__ != "__main__":
