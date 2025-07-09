@@ -101,7 +101,7 @@ _BON_USER_LM_PROMPT_TEMPLATE = textwrap.dedent(
     CRITICAL: The response MUST be from the perspective of a CUSTOMER/USER, NOT an assistant or agent.
 
     1. **ROLE CONFUSION (AUTOMATIC SCORE 0)**: If the response sounds like it's coming from an assistant/agent rather than a customer, give score 0. Signs include:
-       - Offering help or assistance (e.g., "I can help you with...", "Let me know...", "I'll provide the next steps")
+       - Offering help or assistance (e.g., "I can help you with...", "Let me know...", "I'll provide the next steps", "考虑到您的预算和需求，我再推荐几款...")
        - Asking what the customer wants (e.g., "Would you like a refund or replacement?")
        - Using assistant language (e.g., "To proceed with...", "I need to verify...", "Your order has been verified")
        - Acting like they have access to systems or can process requests
@@ -109,7 +109,7 @@ _BON_USER_LM_PROMPT_TEMPLATE = textwrap.dedent(
     2. If the response includes specific item / order / personal details, and they correctly match the task description you should give full score of 10. If there is some
        change in details, give a corresponding lower score (more incorrect details gets lower score).
     
-    3. The response can include any normal customer conversation otherwise (e.g., asking for help, providing information, saying ###STOP###) etc. which are all correct responses.
+    3. The response can include any normal customer conversation otherwise (e.g., asking for help, saying ###STOP###) etc. which are all correct responses.
     
     4. Additionally, if the candidate response keeps the conversation flowing by describing the task clearly / gives information properly then give a high score and if not
        (e.g. "I don't remember" or unhelpful response) should get a corresponding lower score.
@@ -292,22 +292,11 @@ class QwenTestAgent:
 # ---------------------------------------------------------------------------
 
 _AGENT_SYSTEM_PROMPT = (
-    "# 联想官网销售助手\n"
-    "您是联想官网的销售助手，专注于帮助用户进行产品咨询和推荐。\n\n"
-    "## 工作方式\n"
-    "- 用户询问产品时，直接使用工具查询推荐，无需预先验证身份\n"
-    "- 根据用户需求调用合适的工具，如product_recommend、product_knowledge_retrieval等\n"
-    "- 当工具返回\"没有找到合适的推荐商品\"时，礼貌建议用户调整需求条件\n"
-    "- 保持友好自然的对话，专注于产品推荐和信息查询\n\n"
-    "## 主要产品线\n"
-    "### 台式机: 扬天、天逸、小新、YOGA、拯救者、ThinkStation、ThinkCentre、GeekPro、来酷\n"
-    "### 平板: 拯救者、小新、YOGA、启天、异能者\n"
-    "### 其他: 笔记本、显示器、配件等\n\n"
-    "## 服务原则\n"
-    "- 快速响应用户产品咨询需求\n"
-    "- 使用工具获取准确的产品信息\n"
-    "- 根据用户反馈逐步优化推荐\n"
-    "- 无法解决时建议联系人工客服\n"
+    "你是一个联想商城的智能助手，具备判断是否需要调用外部工具来完成用户请求的能力。\n"
+    "政治相关、危险行为等敏感话题一定要拒绝回答，此时语气要和善且坚决。\n"
+    "当用户提问和联想以及联想商品相关时，尽量找合适的工具来获取信息，基于最新的信息来回答。\n"
+    "如果工具返回的结果中包含“summary_constraints”属性，那么在最终回复的时候要按照这个属性要求的格式进行总结。\n"
+    "[提及](#Mentions)是用户查询中提到的信息，在调用工具的时候，很多参数都会注明是用户提到的某项信息，所以你需要将#Mentions里面符合条件的内容作为工具参数\n"
 )
 
 # ---------------------------------------------------------------------------

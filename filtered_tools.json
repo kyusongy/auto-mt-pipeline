@@ -1,0 +1,1084 @@
+{
+  "book_maintenance": {
+    "name": "book_maintenance",
+    "description": "预约维修工具。用于处理用户预约维修的相关请求，引导用户完成预约流程。",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "description": "用户当前轮的输入内容",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": []
+    },
+    "parameters": {
+      "query": {
+        "description": "用户当前轮的输入内容",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    }
+  },
+  "enquire_maintenance": {
+    "name": "enquire_maintenance",
+    "description": "维修进度查询工具。用于处理用户关于已提交维修工单的状态查询请求，支持通过用户ID或者绑定手机ID获取当前维修进度，注意和预约维修区分。注意绑定手机ID是参数透传来的，你无需关注。",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "description": "用户当前轮的输入内容",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": []
+    },
+    "parameters": {
+      "query": {
+        "description": "用户当前轮的输入内容",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    }
+  },
+  "device_management": {
+    "name": "device_management",
+    "description": "用户名下的联想设备管理工具。\n功能1：用于通过用户ID查询用户名下所有符合条件的联想设备(包括笔记本/台式机/手机/平板/loT等)，可展示设备型号、保修到期时间等详情信息。\n功能2：用于通过SN码绑定设备至用户名下。",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "description": "用户当前轮的输入内容",
+          "type": "string"
+        },
+        "category": {
+          "description": "用户输入中提到的设备类型。例如笔记本、台式机、手机、平板等。",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "brand": {
+          "description": "用户输入中提到的设备品牌。例如小新，拯救者，扬天，天逸，天骄，moto，thinkpad，thinkbook，yoga等。",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "model": {
+          "description": "用户输入中提到的商品型号。例如s510，x1 nano，e14，t14p，pro 16，y9000p，刃7000k，air 14s，geek-pro，razr 50 ultra等。",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "query",
+        "category",
+        "brand",
+        "model"
+      ]
+    },
+    "parameters": {
+      "query": {
+        "description": "用户当前轮的输入内容",
+        "type": "string"
+      },
+      "category": {
+        "description": "用户输入中提到的设备类型。例如笔记本、台式机、手机、平板等。",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "brand": {
+        "description": "用户输入中提到的设备品牌。例如小新，拯救者，扬天，天逸，天骄，moto，thinkpad，thinkbook，yoga等。",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "model": {
+        "description": "用户输入中提到的商品型号。例如s510，x1 nano，e14，t14p，pro 16，y9000p，刃7000k，air 14s，geek-pro，razr 50 ultra等。",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "lenovo_store_search": {
+    "name": "lenovo_store_search",
+    "description": "联想门店查询与导航工具。\n功能1：用于处理用户对联想全国范围内线下门店的查询请求，包括门店名称、位置、营业时间、电话；\n功能2：用于处理用户指定门店导航的需求，给出导航入口。",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "description": "用户当前轮的输入",
+          "type": "string"
+        },
+        "store_type": {
+          "description": "用户想要查询的门店类型, 可选值为: sale_store, after_sale_store, default"
+        },
+        "category": {
+          "description": "用户输入中提到的设备类型。例如笔记本、台式机、手机、平板等。",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "brand": {
+          "description": "用户输入中提到的设备品牌。例如小新，拯救者，扬天，天逸，天骄，moto，thinkpad，thinkbook，yoga等。",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "is_store_navigation": {
+          "description": "用户是否想要进行门店导航",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "query"
+      ]
+    },
+    "parameters": {
+      "query": {
+        "description": "用户当前轮的输入",
+        "type": "string"
+      },
+      "store_type": {
+        "description": "用户想要查询的门店类型, 可选值为: sale_store, after_sale_store, default"
+      },
+      "category": {
+        "description": "用户输入中提到的设备类型。例如笔记本、台式机、手机、平板等。",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "brand": {
+        "description": "用户输入中提到的设备品牌。例如小新，拯救者，扬天，天逸，天骄，moto，thinkpad，thinkbook，yoga等。",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "is_store_navigation": {
+        "description": "用户是否想要进行门店导航",
+        "type": "boolean"
+      }
+    }
+  },
+  "get_user_coupon": {
+    "name": "get_user_coupon",
+    "description": "获取用户优惠信息的工具。用于查询指定用户ID下的所有可用优惠信息，包括优惠券、限时红包。",
+    "input_schema": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    },
+    "parameters": {}
+  },
+  "get_user_profile": {
+    "name": "get_user_profile",
+    "description": "获取用户账户基本信息的工具。用于查询用户的账户的基本信息，包括会员类型、企业会员的信息（企业积分，累计消费，企业名称，下月过期积分、企业等级名称）、个人会员信息（会员等级、乐豆明细、成长值）。",
+    "input_schema": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    },
+    "parameters": {}
+  },
+  "get_product_point_range": {
+    "name": "get_product_point_range",
+    "description": "获取当前参与积分兑换商品的积分范围。",
+    "input_schema": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    },
+    "parameters": {}
+  },
+  "search_products_by_points": {
+    "name": "search_products_by_points",
+    "description": "根据积分范围筛选可兑换商品工具。用于用户提出想要使用会员积分兑换商品的场景，如“我的积分可以兑换哪些商品？”",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "min_point": {
+          "description": "要使用积分兑换的商品的最低积分值",
+          "type": "integer"
+        },
+        "max_point": {
+          "description": "要使用积分兑换的商品的最高积分值",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "min_point",
+        "max_point"
+      ]
+    },
+    "parameters": {
+      "min_point": {
+        "description": "要使用积分兑换的商品的最低积分值",
+        "type": "integer"
+      },
+      "max_point": {
+        "description": "要使用积分兑换的商品的最高积分值",
+        "type": "integer"
+      }
+    }
+  },
+  "general_knowledge_retrieval": {
+    "name": "general_knowledge_retrieval",
+    "description": "联想知识库通用检索工具。\n【主要功能】\n 支持以下领域的知识查询：\n  - 智能体相关介绍（天禧个人智能体、乐享超级智能体）\n  - 产品相关：保修政策、驱动下载、商品故障反馈、加装配件、验机激活等\n  - 售后服务：售后政策、维修进度、门店信息等\n  - 客户支持：物流发货、订单发票、风险合规、数据事件等\n  - 企业信息：品牌形象、ESG、招聘合作、培训人力、采访访谈、高管介绍等\n  - 渠道合作：经销商代理、合作途径等\n  - 其他有关联想问题处理\n\n【适用场景】\n- 用户提问涉及以上知识领域时\n- 标准工具无法覆盖的问题，且明显属于联想内部信息，需要调用内部知识库进行深度解答时。",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "description": "用户查询内容",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rewrite_query": {
+          "description": "重写后的用户查询内容，包含上文用户提到的主题，时间等能帮助检索的上下文信息",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "consult_keywords": {
+          "description": "用于提取并返回用户查询内容中出现的核心关键词。该参数会分析用户输入的文本，识别出所有能代表查询意图的词语或短语，便于后续处理、检索或推荐相关内容。",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {}
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": []
+    },
+    "parameters": {
+      "query": {
+        "description": "用户查询内容",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "rewrite_query": {
+        "description": "重写后的用户查询内容，包含上文用户提到的主题，时间等能帮助检索的上下文信息",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "consult_keywords": {
+        "description": "用于提取并返回用户查询内容中出现的核心关键词。该参数会分析用户输入的文本，识别出所有能代表查询意图的词语或短语，便于后续处理、检索或推荐相关内容。",
+        "anyOf": [
+          {
+            "type": "array",
+            "items": {}
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    }
+  },
+  "product_knowledge_retrieval": {
+    "name": "product_knowledge_retrieval",
+    "description": "联想所有商品知识检索工具。当用户提及多个商品时，你需要拆解问题调用多次该工具给出总结回复。比如：拯救者Y9000P配置如何？小新pro怎么样？对比下小新系列和拯救者系列。",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "description": "用户查询内容",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rewrite_query": {
+          "description": "重写后的用户查询内容，包含上文用户提到的商品名，配置要求，功能要求等能帮助检索的上下文信息",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "spu_ids": {
+          "description": "用户查询中提到的商品编号列表",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {}
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sku_ids": {
+          "description": "用户查询中提到的商品编号列表",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {}
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "category": {
+          "description": "用户输入中提到的设备类型。例如笔记本、台式机、手机、平板等。",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {}
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": []
+    },
+    "parameters": {
+      "query": {
+        "description": "用户查询内容",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "rewrite_query": {
+        "description": "重写后的用户查询内容，包含上文用户提到的商品名，配置要求，功能要求等能帮助检索的上下文信息",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "spu_ids": {
+        "description": "用户查询中提到的商品编号列表",
+        "anyOf": [
+          {
+            "type": "array",
+            "items": {}
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "sku_ids": {
+        "description": "用户查询中提到的商品编号列表",
+        "anyOf": [
+          {
+            "type": "array",
+            "items": {}
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "category": {
+        "description": "用户输入中提到的设备类型。例如笔记本、台式机、手机、平板等。",
+        "anyOf": [
+          {
+            "type": "array",
+            "items": {}
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    }
+  },
+  "solution_click_event": {
+    "name": "solution_click_event",
+    "description": "企业解决方案咨询工具。仅限用户点击解决方案标题时使用此工具，此时event参数值为solution_detail。",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "description": "用户点击解决方案标题",
+          "type": "string"
+        }
+      },
+      "required": []
+    },
+    "parameters": {
+      "title": {
+        "description": "用户点击解决方案标题",
+        "type": "string"
+      }
+    }
+  },
+  "to_b_retrieval": {
+    "name": "to_b_retrieval",
+    "description": "企业级（to B）解决方案、行业成功案例、白皮书知识查询工具。帮助用户了解联想在教育、医疗、政府、制造、金融、能源、交通、服务等行业下有哪些企业级解决方案，引导用户留资。比如：联想教育行业有哪些解决方案，给我教育行业的白皮书。",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "description": "用户当前轮的输入",
+          "type": "string"
+        },
+        "rewritten_query": {
+          "description": "表示对原始用户输入经过澄清、消歧义、补全或重写后的结果。通常用于提升检索或问答的准确性。",
+          "type": "string"
+        },
+        "goal": {
+          "description": "解决方案类别。例如解决方案、成功案例、白皮书等。",
+          "type": "string"
+        },
+        "sector": {
+          "description": "解决方案行业。例如教育、医疗、政府、制造、金融、能源、交通、服务等。",
+          "type": "string"
+        },
+        "scene": {
+          "description": "解决方案场景。例如区卫-智慧区卫, 医院-服务等。",
+          "type": "string"
+        },
+        "solution": {
+          "description": "解决方案的标题。例如高性能计算解决方案等。",
+          "type": "string"
+        }
+      },
+      "required": []
+    },
+    "parameters": {
+      "query": {
+        "description": "用户当前轮的输入",
+        "type": "string"
+      },
+      "rewritten_query": {
+        "description": "表示对原始用户输入经过澄清、消歧义、补全或重写后的结果。通常用于提升检索或问答的准确性。",
+        "type": "string"
+      },
+      "goal": {
+        "description": "解决方案类别。例如解决方案、成功案例、白皮书等。",
+        "type": "string"
+      },
+      "sector": {
+        "description": "解决方案行业。例如教育、医疗、政府、制造、金融、能源、交通、服务等。",
+        "type": "string"
+      },
+      "scene": {
+        "description": "解决方案场景。例如区卫-智慧区卫, 医院-服务等。",
+        "type": "string"
+      },
+      "solution": {
+        "description": "解决方案的标题。例如高性能计算解决方案等。",
+        "type": "string"
+      }
+    }
+  },
+  "lenovo_member_retrieval": {
+    "name": "lenovo_member_retrieval",
+    "description": "联想会员知识检索工具。支持个人会员与企业会员相关知识内容的查询，用于快速获取会员权益、等级、服务等信息。比如：联想会员权益？企业会员介绍下。",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "description": "query",
+          "type": "string"
+        },
+        "clarified_query": {
+          "description": "表示对原始用户输入经过澄清、消歧义、补全或重写后的结果。通常用于提升检索或问答的准确性。",
+          "type": "string"
+        },
+        "member_ask_type": {
+          "description": "用于指定或标识用户的会员身份类型。不同的会员类型通常对应不同的服务内容。只能从以下参数候选集中选择：个人会员，企业会员",
+          "type": "string"
+        }
+      },
+      "required": []
+    },
+    "parameters": {
+      "query": {
+        "description": "query",
+        "type": "string"
+      },
+      "clarified_query": {
+        "description": "表示对原始用户输入经过澄清、消歧义、补全或重写后的结果。通常用于提升检索或问答的准确性。",
+        "type": "string"
+      },
+      "member_ask_type": {
+        "description": "用于指定或标识用户的会员身份类型。不同的会员类型通常对应不同的服务内容。只能从以下参数候选集中选择：个人会员，企业会员",
+        "type": "string"
+      }
+    }
+  },
+  "customer_service": {
+    "name": "customer_service",
+    "description": "该工具将用户当前对话请求转接至人工客服处理，适用于用户要求或需要人工介入的情况。比如：转人工；需要人工。",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "description": "query",
+          "type": "string"
+        },
+        "human_service_queue": {
+          "description": "转人工服务队列填槽。只能从以下参数候选集中选择：个人及家庭, think产品, 中小企业, 商用产品。",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": []
+    },
+    "parameters": {
+      "query": {
+        "description": "query",
+        "type": "string"
+      },
+      "human_service_queue": {
+        "description": "转人工服务队列填槽。只能从以下参数候选集中选择：个人及家庭, think产品, 中小企业, 商用产品。",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "product_recommend": {
+    "name": "product_recommend",
+    "description": "根据用户需求，推荐满足用户需求的商品。",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "sku_ids": {
+          "description": "提取到当前query中用户提及商品对应的SKU",
+          "type": "array",
+          "items": {
+            "type": "integer"
+          }
+        },
+        "spu_ids": {
+          "description": "提取到当前query中用户提及商品对应的SPU",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "category": {
+          "description": "用户当前需要推荐的商品品类，例如笔记本、台式机、手机、平板等。",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "query": {
+          "description": "用户当前输入",
+          "type": "string"
+        },
+        "request_brand_flag": {
+          "description": "用户当前要求推荐的商品是否指定了特定联想品牌下的产品系列，True表示指定了，False表示未指定",
+          "type": "boolean"
+        },
+        "request_brand": {
+          "description": "用户当前需要推荐的联想品牌下的产品系列，例如拯救者、小新、ThinkPad等,列表中一个元素表示一个系列，如果用户没有指定系列，则为空列表",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": []
+    },
+    "parameters": {
+      "sku_ids": {
+        "description": "提取到当前query中用户提及商品对应的SKU",
+        "type": "array",
+        "items": {
+          "type": "integer"
+        }
+      },
+      "spu_ids": {
+        "description": "提取到当前query中用户提及商品对应的SPU",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "category": {
+        "description": "用户当前需要推荐的商品品类，例如笔记本、台式机、手机、平板等。",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "query": {
+        "description": "用户当前输入",
+        "type": "string"
+      },
+      "request_brand_flag": {
+        "description": "用户当前要求推荐的商品是否指定了特定联想品牌下的产品系列，True表示指定了，False表示未指定",
+        "type": "boolean"
+      },
+      "request_brand": {
+        "description": "用户当前需要推荐的联想品牌下的产品系列，例如拯救者、小新、ThinkPad等,列表中一个元素表示一个系列，如果用户没有指定系列，则为空列表",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "product_params_compare": {
+    "name": "product_params_compare",
+    "description": "该工具用于根据传入的多个 SKU ID 对应的商品进行详细参数对比。适用于用户在对话中明确提供多个商品 ID 并希望对它们的技术规格、属性等进行比较的场景。\n注意：仅支持以具体 SKU ID 列表作为输入, 或者用户点击了[对比商品]后才会触发，此时event参数值为product_compare。",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "product_ids_to_compare": {
+          "description": "参数对比的商品编号列表",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "product_ids_to_compare"
+      ]
+    },
+    "parameters": {
+      "product_ids_to_compare": {
+        "description": "参数对比的商品编号列表",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "education_discount_retrieval": {
+    "name": "education_discount_retrieval",
+    "description": "该工具用于解答用户关于教育优惠相关的咨询。比如：教育优惠有哪些礼包？",
+    "input_schema": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    },
+    "parameters": {}
+  },
+  "national_subsidy_retrieval": {
+    "name": "national_subsidy_retrieval",
+    "description": "该工具提供关于国家补贴政策的信息查询，帮助用户了解相关补贴标准、适用范围及申请流程等。比如：北京国补政策，国补怎么领取？小新系列参加上海国补吗？",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "description": "query",
+          "type": "string"
+        },
+        "brand": {
+          "description": "用户输入中提到的设备品牌。例如小新，拯救者，扬天，天逸，天骄，moto，thinkpad，thinkbook，yoga等。",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "model": {
+          "description": "用户输入中提到的商品型号。例如s510，x1 nano，e14，t14p，pro 16，y9000p，刃7000k，air 14s，geek-pro，razr 50 ultra等。",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "category": {
+          "description": "用户输入中提到的设备类型。例如笔记本、台式机、手机、平板等。",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "mention_user_province": {
+          "description": "用户查询中提到的省份列表。",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sku_ids": {
+          "description": "用户查询中提及的商品id列表",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "spu_ids": {
+          "description": "用户查询中提及的商品 SPU id列表",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": []
+    },
+    "parameters": {
+      "query": {
+        "description": "query",
+        "type": "string"
+      },
+      "brand": {
+        "description": "用户输入中提到的设备品牌。例如小新，拯救者，扬天，天逸，天骄，moto，thinkpad，thinkbook，yoga等。",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "model": {
+        "description": "用户输入中提到的商品型号。例如s510，x1 nano，e14，t14p，pro 16，y9000p，刃7000k，air 14s，geek-pro，razr 50 ultra等。",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "category": {
+        "description": "用户输入中提到的设备类型。例如笔记本、台式机、手机、平板等。",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "mention_user_province": {
+        "description": "用户查询中提到的省份列表。",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "sku_ids": {
+        "description": "用户查询中提及的商品id列表",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "spu_ids": {
+        "description": "用户查询中提及的商品 SPU id列表",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "newcomer_gift_retrieval": {
+    "name": "newcomer_gift_retrieval",
+    "description": "该工具用于解答用户关于新人礼包相关的咨询。比如：联想会员新人礼包有哪些？",
+    "input_schema": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    },
+    "parameters": {}
+  },
+  "product_discount_retrieval": {
+    "name": "product_discount_retrieval",
+    "description": "该工具用于查询商品相关的优惠活动、以旧换新政策及买赠信息，比如：y9000p能以旧换新吗？拯救者有优惠吗？",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "description": "query",
+          "type": "string"
+        },
+        "brand": {
+          "description": "用户输入中提到的设备品牌。例如小新，拯救者，扬天，天逸，天骄，moto，thinkpad，thinkbook，yoga等。",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "model": {
+          "description": "用户输入中提到的商品型号。例如s510，x1 nano，e14，t14p，pro 16，y9000p，刃7000k，air 14s，geek-pro，razr 50 ultra等。",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "category": {
+          "description": "用户输入中提到的设备类型。例如笔记本、台式机、手机、平板等。",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "mention_user_province": {
+          "description": "用户查询中提到的省份列表。",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sku_ids": {
+          "description": "用户查询中提及的商品id列表",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "spu_ids": {
+          "description": "用户查询中提及的商品 SPU id列表",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": []
+    },
+    "parameters": {
+      "query": {
+        "description": "query",
+        "type": "string"
+      },
+      "brand": {
+        "description": "用户输入中提到的设备品牌。例如小新，拯救者，扬天，天逸，天骄，moto，thinkpad，thinkbook，yoga等。",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "model": {
+        "description": "用户输入中提到的商品型号。例如s510，x1 nano，e14，t14p，pro 16，y9000p，刃7000k，air 14s，geek-pro，razr 50 ultra等。",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "category": {
+        "description": "用户输入中提到的设备类型。例如笔记本、台式机、手机、平板等。",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "mention_user_province": {
+        "description": "用户查询中提到的省份列表。",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "sku_ids": {
+        "description": "用户查询中提及的商品id列表",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "spu_ids": {
+        "description": "用户查询中提及的商品 SPU id列表",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "seasonal_activity_retrieval": {
+    "name": "seasonal_activity_retrieval",
+    "description": "该工具用于查询联想商城当季重点推广的营销活动信息。比如：换新季，毕业季，官网大促活动。",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "description": "query",
+          "type": "string"
+        },
+        "brand": {
+          "description": "用户输入中提到的设备品牌。例如小新，拯救者，扬天，天逸，天骄，moto，thinkpad，thinkbook，yoga等。",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "model": {
+          "description": "用户输入中提到的商品型号。例如s510，x1 nano，e14，t14p，pro 16，y9000p，刃7000k，air 14s，geek-pro，razr 50 ultra等。",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "category": {
+          "description": "用户输入中提到的设备类型。例如笔记本、台式机、手机、平板等。",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "mention_user_province": {
+          "description": "用户查询中提到的省份列表。",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sku_ids": {
+          "description": "用户查询中提及的商品id列表",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "spu_ids": {
+          "description": "用户查询中提及的商品 SPU id列表",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": []
+    },
+    "parameters": {
+      "query": {
+        "description": "query",
+        "type": "string"
+      },
+      "brand": {
+        "description": "用户输入中提到的设备品牌。例如小新，拯救者，扬天，天逸，天骄，moto，thinkpad，thinkbook，yoga等。",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "model": {
+        "description": "用户输入中提到的商品型号。例如s510，x1 nano，e14，t14p，pro 16，y9000p，刃7000k，air 14s，geek-pro，razr 50 ultra等。",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "category": {
+        "description": "用户输入中提到的设备类型。例如笔记本、台式机、手机、平板等。",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "mention_user_province": {
+        "description": "用户查询中提到的省份列表。",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "sku_ids": {
+        "description": "用户查询中提及的商品id列表",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "spu_ids": {
+        "description": "用户查询中提及的商品 SPU id列表",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "stock_price_retrieval": {
+    "name": "stock_price_retrieval",
+    "description": "该工具用于查询联想集团最新股价信息，随时掌握股市动态。比如：联想现在的股价是多少？",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "description": "user_input",
+          "type": "string"
+        }
+      },
+      "required": []
+    },
+    "parameters": {
+      "query": {
+        "description": "user_input",
+        "type": "string"
+      }
+    }
+  }
+}

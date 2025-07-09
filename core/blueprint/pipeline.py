@@ -79,6 +79,7 @@ def _build_generator_prompt(
     sampled_orders: str = "",
     examples: str = "",
     prev_feedback: str = "",
+    api_dependencies: str = "",
 ) -> List[ChatCompletionMessageParam]:
     """Create **one** combined prompt string following Figure-8 of the paper.
 
@@ -96,26 +97,22 @@ def _build_generator_prompt(
         request or solve their intentions. Focus on common Lenovo customer scenarios following the provided task instruction guidelines.
 
         ## Guidelines for Generating Task Instruction (q)
-        {task_rules + domain_rules}
-
-        ## VERY IMPORTANT: The instruction (intent) MUST explicitly mention
-        *every* concrete identifier or value that the assistant will need
-        later, such as user_id, product names, model numbers, budget ranges,
-        usage scenarios, etc.  This allows a simulated human to converse naturally WITHOUT
-        hallucinating any missing details.
-
-        ## User Data
-        {sampled_user_details}
-
-        ## Purchase History Data
-        {sampled_orders}
-
+        {domain_rules}
+        
         ## Guidelines for generating Groundtruth Actions (a_g t)
         1.  The main focus is to generate actions that help users with Lenovo products and services.
         2.  For actions that provide information requests, use appropriate tools like product_recommend, product_knowledge_retrieval, etc.
         3.  Include multiple tool calls when the scenario requires comprehensive assistance (e.g., product recommendation + parameter comparison).
         4.  Provide precise tool calls with all necessary parameters for each action.
         5.  Ensure all actions adhere to Lenovo service policies and help users make informed decisions.
+        6.  **Tool Chaining & Dependencies**: Some tools require outputs from previous tools as inputs:
+            - product_params_compare needs 'product_ids_to_compare' which comes from product_recommend output
+            - When creating multi-step workflows, structure actions in the correct order
+            - For dependent tools, use placeholder values that represent the expected output format
+            - Example: product_recommend → extract SKU IDs → product_params_compare with those IDs
+
+        ## API Dependencies
+        {api_dependencies}
 
         ## Tools
         The available tool combination in Python format is as follows:
@@ -200,6 +197,7 @@ class BlueprintGenerator:
             sampled_orders=prompt_kwargs.get("sampled_orders", ""),
             examples=prompt_kwargs.get("examples", ""),
             prev_feedback=prompt_kwargs.get("prev_feedback", ""),
+            api_dependencies=prompt_kwargs.get("api_dependencies", ""),
         )
         completion = sync_request_llm(
             self.llm_config,

@@ -49,15 +49,15 @@ generation_config = {
     "blueprint_max_tokens": 8192,
     
     # Trajectory collection - customer simulator (consistency for realistic behavior)
-    "trajectory_temperature": 0.4,
+    "trajectory_temperature": 0.3,
     "trajectory_max_tokens": 4096,
     
     # Retail assistant agent (balance between helpful and deterministic)
     "assistant_temperature": 0.3,
     "assistant_max_tokens": 4096,
     
-    # Request timeout for all LLM calls (seconds)
-    "timeout": 120,
+    # General timeout setting
+    "timeout": 120
 }
 
 # =============================================================================
@@ -65,7 +65,7 @@ generation_config = {
 # =============================================================================
 pipeline_config = {
     "max_blueprint_attempts": 5,  # Max retries for blueprint generation
-    "bon_n": 1,                   # Best-of-N sampling for trajectory collection
+    "bon_n": 3,                   # Best-of-N sampling for trajectory collection
     "debug": True,                # Enable debug output for development
 }
 

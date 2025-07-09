@@ -34,6 +34,7 @@ from config import (
 from core.blueprint.pipeline import generate_valid_blueprint
 from core.trajectory.pipeline import TrajectoryCollector
 from core.mcp_client import MCPClient, MCPConfig, get_mcp_tool_schemas
+# Remove unused imports
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -96,6 +97,16 @@ def main():
     
     # Get tool schemas (MCP or fallback)
     tools_schema, mcp_client = get_tool_schemas()
+
+    # -------------------------------------------------------------------
+    # Load cached API dependency edges (built separately)
+    # -------------------------------------------------------------------
+
+    edges_file = output_dir / "api_edges.json"
+
+    api_edges_json = edges_file.read_text(encoding="utf-8")
+ 
+    # -------------------------------------------------------------------
     
     # Phase 1: Generate validated blueprint
     print("\n📋 Phase 1: Blueprint Generation & Validation")
@@ -112,6 +123,7 @@ def main():
             "sampled_orders": SAMPLED_ORDERS,
             "examples": EXAMPLE_TASK,
             "task_rules": "",
+            "api_dependencies": api_edges_json,
         },
     )
 
