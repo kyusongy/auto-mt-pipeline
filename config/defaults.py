@@ -66,6 +66,10 @@ class PipelineConfig(BaseModel):
         default=5,
         description="Maximum attempts for blueprint generation"
     )
+    max_blueprint_iterations: int = Field(
+        default=3,
+        description="Maximum iterations for blueprint generation and execution validation"
+    )
     bon_n: int = Field(
         default=1,
         description="Best-of-N sampling for trajectory collection"

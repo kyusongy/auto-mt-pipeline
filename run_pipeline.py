@@ -31,7 +31,7 @@ from config import (
     DEFAULT_PIPELINE_CONFIG,
     mcp_config,
 )
-from core.blueprint.pipeline import generate_valid_blueprint
+from core.blueprint.iterative_generator import generate_validated_blueprint
 from core.trajectory.pipeline import TrajectoryCollector
 from core.mcp_client import MCPClient, MCPConfig, get_mcp_tool_schemas
 # Remove unused imports
@@ -112,11 +112,19 @@ def main():
     print("\n📋 Phase 1: Blueprint Generation & Validation")
     print("-" * 40)
     
-    blueprint = generate_valid_blueprint(
+    # Use new two-stage iterative blueprint generation
+    if not mcp_client:
+        raise RuntimeError("MCP client is required for the new iterative blueprint generation")
+    
+    print("🔄 Using two-stage iterative blueprint generation with action validation")
+    blueprint = generate_validated_blueprint(
         llm_config,
         tools_schema,
         PERSONAS,
+        mcp_client,
         max_attempts=pipeline_config.max_blueprint_attempts,
+        max_generation_attempts_per_persona=pipeline_config.max_blueprint_iterations,
+        max_execution_iterations=pipeline_config.max_blueprint_iterations,
         prompt_kwargs={
             "domain_rules": DOMAIN_RULES,
             "sampled_user_details": SAMPLED_USER_DETAILS,
@@ -132,11 +140,21 @@ def main():
     print(f"  Actions: {len(blueprint.actions)} tool calls")
     print(f"  Expected outputs: {len(blueprint.expected_outputs)} items")
     
+    # Show method used
+    method_used = "two_stage_iterative_validated"
+    print(f"  Generation method: {method_used}")
+    
     # Show the blueprint structure
     blueprint_data = {
         "intent": blueprint.user_intent,
         "actions": [a.model_dump() for a in blueprint.actions],
         "outputs": blueprint.expected_outputs,
+        "metadata": {
+            "generation_method": method_used,
+            "used_mcp": True,
+            "stage_1": "intent_actions_validation",
+            "stage_2": "execution_validation"
+        }
     }
     
     print("\n📋 Blueprint JSON:")

@@ -79,8 +79,12 @@ All complex settings (retail domain rules, personas, sample data) are automatica
 
 ## Features
 
-- **Two-Phase Pipeline**: Blueprint generation → Trajectory collection
-- **Qwen Agent Integration**: Preserved original Qwen agent implementation
+- **Two-Stage Blueprint Generation**: 
+  - Stage 1: Intent + Actions validation with original checks + review committee
+  - Stage 2: Action execution validation with iterative refinement
+- **Real Action Validation**: All blueprint actions are executed and validated before approval
+- **Qwen Agent Integration**: Preserved original Qwen agent implementation for trajectory collection  
+- **MCP Integration**: Uses MCP client for real tool execution during blueprint validation
 - **Configurable**: Easy to adjust LLM settings, sampling parameters, and domain data
 - **Debug Support**: Comprehensive logging and debug output options
 - **Extensible**: Clean structure makes it easy to add new tools and prompts

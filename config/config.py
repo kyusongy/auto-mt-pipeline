@@ -67,6 +67,9 @@ pipeline_config = {
     "max_blueprint_attempts": 5,  # Max retries for blueprint generation
     "bon_n": 3,                   # Best-of-N sampling for trajectory collection
     "debug": True,                # Enable debug output for development
+    
+    # Blueprint generation settings (two-stage iterative process)
+    "max_blueprint_iterations": 3,  # Max iterations per stage in blueprint generation
 }
 
 # =============================================================================

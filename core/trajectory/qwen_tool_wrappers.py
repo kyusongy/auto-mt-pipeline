@@ -50,45 +50,6 @@ def _make_mcp_tool_cls(name: str, spec: dict):
             }
         )
 
-    def _convert_parameter_types(data: dict, schema: dict) -> dict:
-        """Convert parameter values to match expected schema types."""
-        converted = {}
-        
-        for param_name, param_value in data.items():
-            if param_name in schema:
-                param_spec = schema[param_name]
-                param_type = param_spec.get("type")
-                
-                if param_type == "array" and "items" in param_spec:
-                    # Handle array parameters
-                    items_type = param_spec["items"].get("type")
-                    if items_type == "string" and isinstance(param_value, list):
-                        # Convert array items to strings if needed
-                        converted[param_name] = [str(item) for item in param_value]
-                    else:
-                        converted[param_name] = param_value
-                elif param_type == "string" and not isinstance(param_value, str):
-                    # Convert to string if needed
-                    converted[param_name] = str(param_value)
-                elif param_type == "integer" and not isinstance(param_value, int):
-                    # Convert to integer if needed
-                    try:
-                        converted[param_name] = int(param_value)
-                    except (ValueError, TypeError):
-                        converted[param_name] = param_value
-                elif param_type == "boolean" and not isinstance(param_value, bool):
-                    # Convert to boolean if needed
-                    if isinstance(param_value, str):
-                        converted[param_name] = param_value.lower() in ("true", "1", "yes")
-                    else:
-                        converted[param_name] = bool(param_value)
-                else:
-                    converted[param_name] = param_value
-            else:
-                converted[param_name] = param_value
-                
-        return converted
-
     @register_tool(name)
     class _MCPTool(BaseTool):
         description = _desc
@@ -104,9 +65,6 @@ def _make_mcp_tool_cls(name: str, spec: dict):
             
             # Parse parameters
             data = json.loads(params) if isinstance(params, str) else params
-            
-            # Convert parameter types to match schema expectations
-            data = _convert_parameter_types(data, params_schema)
             
             # Extract query for context (if available)
             query = data.get("query", "")
