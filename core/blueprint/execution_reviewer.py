@@ -78,7 +78,7 @@ class ExecutionReviewer:
         """Build the review prompt with full context."""
         
         # Format execution results for review
-        execution_details = self._format_execution_results(execution_summary)
+        execution_details = ExecutionReviewer._format_execution_results(execution_summary)
         
         # Format original actions
         actions_json = json.dumps([a.model_dump() for a in actions], indent=2, ensure_ascii=False)
@@ -162,7 +162,8 @@ class ExecutionReviewer:
         
         return [{"role": "user", "content": prompt}]
     
-    def _format_execution_results(self, execution_summary: ActionExecutionSummary) -> str:
+    @staticmethod
+    def _format_execution_results(execution_summary: ActionExecutionSummary) -> str:
         """Format execution results for display in the review prompt."""
         lines = []
         

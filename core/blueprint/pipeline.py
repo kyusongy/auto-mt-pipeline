@@ -62,6 +62,7 @@ class Blueprint:
     actions: List[ToolCalling]
     expected_outputs: List[Any]
     raw_response: str | None = None  # original LLM output for debugging
+    thought_process: str | None = None  # thought process explaining the rationale for actions
 
 
 # ---------------------------------------------------------------------------
@@ -167,6 +168,19 @@ def _extract_json_block(text: str) -> str:
     return cleaned.strip()
 
 
+def _extract_thought_block(text: str) -> str:
+    """Extract the thought process from <thought></thought> tags."""
+    cleaned = text.strip()
+    
+    # Look for <thought>...</thought> tags
+    m = re.search(r"<\s*thought\s*>(.*?)<\s*/thought\s*>", cleaned, re.S | re.I)
+    if m:
+        return m.group(1).strip()
+    
+    # Return empty string if no thought tags found
+    return ""
+
+
 # ---------------------------------------------------------------------------
 # Blueprint generator
 # ---------------------------------------------------------------------------
@@ -213,6 +227,7 @@ class BlueprintGenerator:
 
         # Extract content from <answer> tag, falling back to full response
         json_content = _extract_json_block(raw_content)
+        thought_process = _extract_thought_block(raw_content)
 
         # Parse JSON
         try:
@@ -231,7 +246,7 @@ class BlueprintGenerator:
             if tool_name and tool_args is not None:
                 actions.append(ToolCalling(name=tool_name, arguments=tool_args))
 
-        return Blueprint(intent, actions, outputs, raw_response=json_content)
+        return Blueprint(intent, actions, outputs, raw_response=json_content, thought_process=thought_process)
 
 
 # ---------------------------------------------------------------------------
@@ -285,16 +300,15 @@ _REVIEW_PROMPT_TEMPLATE = """
 You are an AI judge and your goal is to judge the quality and validity of the provided task object based on the guidelines, following the rubric.
 
 ## Guidelines
-• The task object contains an `intent` (q) from a user, `actions` (a_g t), and `outputs` (o_g t).
-• The `actions` correspond to the tool_calls made by an AI assistant to satisfy the instruction.
+• The task object contains an `intent` from a user and `actions`.
+• The `actions` correspond to the tool_calls made by an AI assistant to satisfy the instruction (placeholder in arguments are allowed).
 • A description of the `tools` available to the AI assistant is provided.
 • Perform a brief reflection on the task based on the below Rubrics.
 • Think step-by-step to generate a score of 0 or 1 for each of these criteria (1 means follows criterion and 0 means does not)
 
 ## Rubric
-• Correctness: Do the actions (a_g t) accurately implement the instruction (q)?
-• Completeness: Is the instruction (q) sufficiently detailed, and is it fully addressed by the actions? (Includes rule-based checks).
-• Satisfaction: Do the expected outputs (o_g t) fulfil any explicit or implicit information requests within the instruction (q)?
+• Correctness: Do the actions accurately implement the intent?
+• Completeness: Is the intent sufficiently detailed, and is it fully addressed by the actions? (Includes rule-based checks).
 • Creativity: Does the task represent a non-trivial, plausible, and potentially interesting scenario within the domain?
 
 ## Task Object

@@ -206,8 +206,16 @@ class ActionExecutor:
         product_ids = []
         
         if isinstance(product_result, dict):
+            # First check for MCP-specific format (item_list)
+            if "item_list" in product_result:
+                item_list = product_result["item_list"]
+                if isinstance(item_list, list):
+                    product_ids.extend([str(pid) for pid in item_list])
+                    if self.debug:
+                        print(f"🔍 Found {len(product_ids)} product IDs in item_list: {product_ids[:5]}...")
+            
             # Look for common product ID fields
-            if "products" in product_result:
+            if not product_ids and "products" in product_result:
                 products = product_result["products"]
                 if isinstance(products, list):
                     for product in products:
@@ -218,12 +226,14 @@ class ActionExecutor:
                                     product_ids.append(str(product[id_field]))
                                     break
             
-            # Also look for direct ID lists
-            for id_field in ["skus", "ids", "product_ids", "productIds"]:
-                if id_field in product_result:
-                    ids = product_result[id_field]
-                    if isinstance(ids, list):
-                        product_ids.extend([str(pid) for pid in ids])
+            # Also look for direct ID lists (fallback)
+            if not product_ids:
+                for id_field in ["skus", "ids", "product_ids", "productIds"]:
+                    if id_field in product_result:
+                        ids = product_result[id_field]
+                        if isinstance(ids, list):
+                            product_ids.extend([str(pid) for pid in ids])
+                            break
         
         elif isinstance(product_result, list):
             # Direct list of products

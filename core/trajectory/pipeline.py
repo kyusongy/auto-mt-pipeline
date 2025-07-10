@@ -70,22 +70,25 @@ from tools.retail_tools import RUNTIME_FUNCTIONS  # provides callable stubs for 
 
 _TRAJECTORY_COLLECTION_PROMPT_TEMPLATE = textwrap.dedent(
     """
-    You are a detail-oriented user interacting with an AI agent.
+    You are a concise user interacting with an AI agent.
 
     ## Intent
     {intent}
 
     ## Rules
-    • Generate one line at a time to simulate the user's message.
+    • Generate one line at a time to simulate the user's message (asking questions or offering information).
+    • **KEEP MESSAGES VERY SHORT**: Maximum 1-2 sentences per message. Be direct and to the point.
+    • **NO PLEASANTRIES**: Avoid "I see", "thank you", "please", "sorry", or other polite language. Be matter-of-fact.
+    • **ONE TOPIC PER MESSAGE**: Focus on one specific question or need. Don't combine multiple requests.
     • Do not give away all the intent at once. Only provide the information that is necessary for the current step.
     • Do not hallucinate information that is not provided in the intent.
-    • If the intent goal is satisfied, generate `###STOP###` to end the conversation.
+    • **CRITICAL**: If the intent is satisfied, you MUST generate EXACTLY `###STOP###` to end the conversation.
     • Do not repeat the exact intent in the conversation. Instead, use your own words to convey the same information.
     • Do not copy or repeat any assistant messages. Always write a brand-new user turn in your own words.
-    • Try to make the conversation as natural as possible and stick to the personalities in the intent.
+    • Be natural but concise. Stick to the personalities in the intent but keep responses brief.
 
     ### Response format
-    Reply with **only** the next message you (the user) would send. Do NOT include any explanations, headings, bullet points, or additional reasoning—just the raw chat line.
+    Reply with **only** the next message you (the user) would send or '###STOP###' to end the conversation. Keep it SHORT (1-2 sentences max). Do NOT include any explanations, headings, bullet points, or additional reasoning—just the raw chat line.
     """
 ).strip()
 
@@ -98,21 +101,28 @@ _BON_USER_LM_PROMPT_TEMPLATE = textwrap.dedent(
     give the assistant. Please help the human evaluate this candidate response, give an integer score (ranging from 0 to 10) to indicate the correctness of the response,
     higher score means better quality.
 
-    CRITICAL: The response MUST be from the perspective of a CUSTOMER/USER, NOT an assistant or agent.
-
     1. **ROLE CONFUSION (AUTOMATIC SCORE 0)**: If the response sounds like it's coming from an assistant/agent rather than a customer, give score 0. Signs include:
-       - Offering help or assistance (e.g., "I can help you with...", "Let me know...", "I'll provide the next steps", "考虑到您的预算和需求，我再推荐几款...")
+       - Offering help or assistance (e.g., "I can help you with...", "Let me know...", "I'll provide the next steps", "推荐...")
        - Asking what the customer wants (e.g., "Would you like a refund or replacement?")
        - Using assistant language (e.g., "To proceed with...", "I need to verify...", "Your order has been verified")
        - Acting like they have access to systems or can process requests
 
-    2. If the response includes specific item / order / personal details, and they correctly match the task description you should give full score of 10. If there is some
+    2. **STOP TOKEN VALIDATION (AUTOMATIC SCORE 0)**: If the response appears to be trying to end the conversation but does NOT use the exact text `###STOP###`, give score 0. Examples of INCORRECT stop attempts:
+       - "### 响应调整" (Chinese response adjustment)
+       - "### 停止" (Chinese stop)
+       - "###停止###" (Chinese stop)
+       - Any other variation that is not exactly `###STOP###`
+       The ONLY correct way to end a conversation is with exactly: `###STOP###`
+
+    3. If the response includes specific item / order / personal details, and they correctly match the task description you should give full score of 10. If there is some
        change in details, give a corresponding lower score (more incorrect details gets lower score).
     
-    3. The response can include any normal customer conversation otherwise (e.g., asking for help, saying ###STOP###) etc. which are all correct responses.
+    4. The response can include any normal customer conversation otherwise (e.g., asking for help, saying ###STOP###) etc. which are all correct responses.
     
-    4. Additionally, if the candidate response keeps the conversation flowing by describing the task clearly / gives information properly then give a high score and if not
+    5. Additionally, if the candidate response keeps the conversation flowing by describing the task clearly / gives information properly then give a high score and if not
        (e.g. "I don't remember" or unhelpful response) should get a corresponding lower score.
+    
+    6. **CONCISENESS BONUS**: Give higher scores to responses that are concise and direct (1-2 sentences). Penalize overly verbose responses with unnecessary pleasantries like "thank you", "please", or rambling explanations.
 
     <description> {description} </description>
     <response> {response} </response>
@@ -211,19 +221,7 @@ class SimulatedHuman:
         if not best_msg:
             return ""
 
-        def _clean_line(line: str) -> str:
-            meta_keywords = (
-                "the user", "assistant", "i should", "let me", "they need", "i need to", "next step", "first,", "okay,", "wait,", "perhaps",
-            )
-            low = line.lower()
-            return "" if any(k in low for k in meta_keywords) else line
-
-        # keep first non-meta line; if none found fallback to original
-        for ln in best_msg.splitlines():
-            cleaned = _clean_line(ln.strip())
-            if cleaned:
-                return cleaned
-
+        # Return the full message without any cleaning/filtering
         return best_msg.strip()
 
 
@@ -294,7 +292,8 @@ class QwenTestAgent:
 _AGENT_SYSTEM_PROMPT = (
     "你是一个联想商城的智能助手，具备判断是否需要调用外部工具来完成用户请求的能力。\n"
     "政治相关、危险行为等敏感话题一定要拒绝回答，此时语气要和善且坚决。\n"
-    "当用户提问和联想以及联想商品相关时，尽量找合适的工具来获取信息，基于最新的信息来回答。\n"
+    "尽量找合适的工具来获取信息，基于工具返回的信息回答。如果不确定使用什么工具，要大胆尝试。\n"
+    "如果尝试多个工具都无法获取有用信息，一定不要自己尝试回答。\n"
     "如果工具返回的结果中包含“summary_constraints”属性，那么在最终回复的时候要按照这个属性要求的格式进行总结。\n"
     "[提及](#Mentions)是用户查询中提到的信息，在调用工具的时候，很多参数都会注明是用户提到的某项信息，所以你需要将#Mentions里面符合条件的内容作为工具参数\n"
 )
@@ -339,7 +338,15 @@ class TrajectoryCollector:
         # Simulate turns (hard-coded max 20 to avoid infinite loop)
         for turn_num in range(1, 21):
             # 1) human speaks
-            user_msg = self.human.next_message(blueprint.user_intent, history)
+            # Create a temporary history that includes role reminder if this isn't the first turn
+            temp_history = history.copy()
+            if turn_num > 1:  # Add reminder after assistant has spoken at least once
+                role_reminder = (
+                    "REMINDER: YOU ARE USER/CUSTOMER. DO NOT RESPOND LIKE A ASSISTANT. YOUR STYLE SHOULD BE CONCISE (1-2 sentences max), NO PLEASANTRIES. DO NOT RESPOND TO THIS REMINDER. START YOUR USER TURN NOW OR GERERATE '###STOP###'."
+                )
+                temp_history.append(Turn("user", role_reminder))
+            
+            user_msg = self.human.next_message(blueprint.user_intent, temp_history)
             if not user_msg:
                 if self.debug:
                     print("[Collector] human LLM returned empty response, aborting trajectory")
@@ -349,7 +356,18 @@ class TrajectoryCollector:
                 print(f"\nTurn {turn_num}")
                 print("[USER]", user_msg)
             # Stop when the user injects the special token anywhere in the line
-            if "###STOP###" in user_msg:
+            # Also catch common Chinese variants as fallback (but log them as warnings)
+            stop_indicators = [
+                "###STOP###",
+                "### 响应调整",  # Chinese "response adjustment"
+                "### 停止",     # Chinese "stop"
+                "###停止###",   # Chinese "stop" with delimiters
+            ]
+            
+            if any(indicator in user_msg for indicator in stop_indicators):
+                if "###STOP###" not in user_msg and self.debug:
+                    print(f"[WARNING] Detected Chinese stop variant in: {user_msg}")
+                    print("[WARNING] This should be fixed in the prompt to use exact '###STOP###'")
                 break
 
             # 2) agent responds (may include tool call)

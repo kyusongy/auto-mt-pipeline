@@ -20,9 +20,11 @@ from config import LLMConfig, GenerationOptions, BLUEPRINT_GENERATION_OPTIONS
 from core.models import ToolCalling
 from core.llm_client import sync_request_llm
 from core.mcp_client import MCPClient
-from .pipeline import Blueprint, BlueprintValidator, ReviewCommittee, _extract_json_block
+from .pipeline import Blueprint, BlueprintValidator, ReviewCommittee, _extract_json_block, _extract_thought_block
 from .action_executor import ActionExecutor
 from .execution_reviewer import ExecutionReviewer, ReviewDecision
+from .action_modifier import ActionModifier
+from .output_generator import OutputGenerator
 
 
 class Stage1Generator:
@@ -50,62 +52,46 @@ class Stage1Generator:
         prompt = textwrap.dedent(
             f"""
             ## Instructions
-            Generate a realistic task instruction and corresponding actions for a Lenovo customer scenario. 
-            **Important**: Generate only the user intent and actions - do NOT generate expected outputs yet. 
-            The outputs will be created based on actual tool execution results in Stage 2.
+        Generate a task instruction that mimics realistic human users and their intentions, such as with different personality and goals. The task instruction should be
+        followed by `actions` which is a list of the tool_calls to be taken to solve this task. Think step by step to come up with the action(s) and the corresponding 
+        tool_call(s) translating this thought that would be necessary to fulfil the user's request or solve their intentions. Focus on common Lenovo customer scenarios 
+        following the provided task instruction guidelines.
 
-            ## Guidelines for Generating Task Instruction (intent)
-            {domain_rules}
-            
-            ## Guidelines for Generating Actions
-            1. Focus on generating actions that help users with Lenovo products and services.
-            2. For actions that provide information requests, use appropriate tools like product_recommend, product_knowledge_retrieval, etc.
-            3. Include multiple tool calls when the scenario requires comprehensive assistance (e.g., product recommendation + parameter comparison).
-            4. Provide precise tool calls with all necessary parameters for each action.
-            5. Ensure all actions adhere to Lenovo service policies and help users make informed decisions.
-            6. **Tool Chaining & Dependencies**: Some tools require outputs from previous tools as inputs:
-                - product_params_compare needs 'product_ids_to_compare' which comes from product_recommend output
-                - When creating multi-step workflows, structure actions in the correct order
-                - For dependent tools, use placeholder values that represent the expected output format
-                - Example: product_recommend → extract SKU IDs → product_params_compare with those IDs
+        ## Guidelines for Generating Task Instruction
+        {domain_rules}
+        
+        ## Guidelines for generating Groundtruth Actions
+        1.  The main focus is to generate actions that help users with Lenovo products and services.
+        2.  For actions that provide information requests, use appropriate tools like product_recommend, product_knowledge_retrieval, etc.
+        3.  Include multiple tool calls when the scenario requires comprehensive assistance (e.g., product recommendation + parameter comparison, or multiple product_knowledge_retrieval).
+        4.  Provide precise tool calls with all necessary parameters for each action.
+        5.  Ensure all actions adhere to Lenovo service policies and help users make informed decisions.
+        6.  **Tool Chaining & Dependencies**: Some tools require outputs from previous tools as inputs:
+            - product_params_compare needs 'product_ids_to_compare' which comes from product_recommend output
+            - When creating multi-step workflows, structure actions in the correct order
+            - For dependent tools, use placeholder values that represent the expected output format
+            - Example: product_recommend → extract SKU IDs → product_params_compare with those IDs
 
-            ## API Dependencies
-            {api_dependencies}
+        ## API Dependencies
+        {api_dependencies}
 
-            ## Tools
-            The available tool combination in Python format is as follows:
-            {json.dumps(tools_schema, ensure_ascii=False, indent=2)}
+        ## Tools
+        The available tool combination in Python format is as follows:
+        {json.dumps(tools_schema, ensure_ascii=False, indent=2)}
 
-            ## Output Format
-            Generate your response according to the following format. Enclose the thought process within `<thought></thought>` tags, 
-            and the final structured response within `<answer></answer>` tags. The structured response should be in strict JSON format.
+        ## Output Format
+        Generate your response according to the following format. Enclose the thought process within `<thought></thought>` tags, and the final structured response within
+        `<answer></answer>` tags. The structured response should be in strict JSON format, without any additional comments or explanations.
 
-            **JSON Format:**
-            {{
-                "intent": "User intent description",
-                "actions": [
-                    {{
-                        "name": "tool_name",
-                        "arguments": {{
-                            "param1": "value1",
-                            "param2": "value2"
-                        }}
-                    }}
-                ]
-            }}
 
-            ## Example Tasks (for reference only)
-            {examples}
+        ## Example Tasks
+        {examples}
 
-            ## User Context
-            **User Details:** {sampled_user_details}
-            **Order Context:** {sampled_orders}
+        ## Feedback from previous attempt
+        {prev_feedback}
 
-            ## Feedback from Previous Attempt
-            {prev_feedback}
-
-            Do not directly copy instruction and action patterns from the examples. Ground the generation from the provided data.
-            Generate the task now focusing on realistic user scenarios.
+        Do not directly copy instruction and the action patterns from the examples. Ground the generation from the above provided data.
+        Generate the task now.
             """).strip()
 
         return [{"role": "user", "content": prompt}]
@@ -145,6 +131,7 @@ class Stage1Generator:
 
         # Extract content from <answer> tag
         json_content = _extract_json_block(raw_content)
+        thought_process = _extract_thought_block(raw_content)
 
         # Parse JSON
         try:
@@ -171,7 +158,7 @@ class Stage1Generator:
             raise ValueError("No valid actions parsed from Stage 1 response")
 
         # Return blueprint with empty outputs (will be filled by Stage 2)
-        return Blueprint(intent, actions, expected_outputs=[], raw_response=json_content)
+        return Blueprint(intent, actions, expected_outputs=[], raw_response=json_content, thought_process=thought_process)
 
 
 class IterativeBlueprintGenerator:
@@ -197,6 +184,8 @@ class IterativeBlueprintGenerator:
         self.committee = ReviewCommittee(llm_config, gen_opts=gen_opts, tools_schema=tools_schema)
         self.action_executor = ActionExecutor(mcp_client, debug=debug)
         self.execution_reviewer = ExecutionReviewer(llm_config, gen_opts)
+        self.action_modifier = ActionModifier(llm_config, gen_opts or BLUEPRINT_GENERATION_OPTIONS)
+        self.output_generator = OutputGenerator(llm_config, gen_opts or BLUEPRINT_GENERATION_OPTIONS)
 
     def generate_validated_blueprint(
         self,
@@ -240,6 +229,7 @@ class IterativeBlueprintGenerator:
         prev_feedback = ""
         validated_intent = None
         validated_actions = None
+        validated_thought_process = None
         
         for attempt in range(1, max_generation_attempts + 1):
             if self.debug:
@@ -279,6 +269,7 @@ class IterativeBlueprintGenerator:
                     print(f"✅ Intent + Actions approved by committee")
                 validated_intent = blueprint.user_intent
                 validated_actions = blueprint.actions
+                validated_thought_process = blueprint.thought_process or ""
                 break
             else:
                 # Collect corrections from committee votes for next round
@@ -324,7 +315,7 @@ class IterativeBlueprintGenerator:
             # Review execution results and decide: modify actions OR approve
             try:
                 review_decision = self._review_execution_with_modification_option(
-                    validated_intent, current_actions, execution_summary, original_context
+                    validated_intent, current_actions, validated_thought_process or "", execution_summary, original_context
                 )
                 
                 if self.debug:
@@ -332,11 +323,27 @@ class IterativeBlueprintGenerator:
                     print(f"📊 Confidence: {review_decision.confidence_score:.2f}")
                 
                 if review_decision.approved:
-                    # Success! Create final blueprint with execution-based outputs
+                    # Generate final outputs using OutputGenerator
+                    try:
+                        final_outputs = self.output_generator.generate_outputs(
+                            validated_intent, current_actions, validated_thought_process or "", 
+                            execution_summary, original_context
+                        )
+                        
+                        if self.debug:
+                            print(f"📋 Generated {len(final_outputs)} final outputs")
+                        
+                    except Exception as e:
+                        if self.debug:
+                            print(f"❌ Output generation failed: {e}")
+                        final_outputs = ["Execution completed successfully"]
+                    
+                    # Success! Create final blueprint with generated outputs
                     final_blueprint = Blueprint(
                         user_intent=validated_intent,
                         actions=current_actions,
-                        expected_outputs=review_decision.final_outputs or ["Execution completed successfully"]
+                        expected_outputs=final_outputs,
+                        thought_process=validated_thought_process
                     )
                     
                     if self.debug:
@@ -344,18 +351,18 @@ class IterativeBlueprintGenerator:
                     
                     return final_blueprint
                 else:
-                    # Extract modified actions for next iteration
-                    if hasattr(review_decision, 'modified_actions') and review_decision.modified_actions:
-                        current_actions = review_decision.modified_actions
-                        if self.debug:
-                            print(f"🔄 Using modified actions for next iteration: {[a.name for a in current_actions]}")
-                    else:
-                        if self.debug:
-                            print(f"❌ No modified actions provided, using feedback for refinement")
-                        # Fallback: generate new actions based on feedback
-                        current_actions = self._regenerate_actions_from_feedback(
-                            validated_intent, review_decision.feedback, original_context
-                        )
+                    # Generate modified actions and thought process using ActionModifier
+                    modified_actions, modified_thought_process = self.action_modifier.modify_actions_and_thought(
+                        validated_intent, current_actions, validated_thought_process or "", 
+                        review_decision.feedback, execution_summary, original_context
+                    )
+                    
+                    current_actions = modified_actions
+                    validated_thought_process = modified_thought_process
+                    
+                    if self.debug:
+                        print(f"🔄 Modified actions for next iteration: {[a.name for a in current_actions]}")
+                        print(f"🔄 Updated thought process: {validated_thought_process[:100]}...")
                         
             except Exception as e:
                 if self.debug:
@@ -373,10 +380,11 @@ class IterativeBlueprintGenerator:
         self,
         user_intent: str,
         actions: List[ToolCalling],
+        thought_process: str,
         execution_summary,
         original_context: Dict[str, Any]
     ) -> ReviewDecision:
-        """Review execution results with option to modify actions OR approve completely."""
+        """Review execution results and decide whether to approve or modify (simplified reviewer)."""
         
         # Format execution results for review
         execution_details = self.execution_reviewer._format_execution_results(execution_summary)
@@ -387,30 +395,17 @@ class IterativeBlueprintGenerator:
         prompt = textwrap.dedent(f"""
         ## Task: Review Action Execution Results
         
-        You are reviewing the execution results of blueprint actions. Based on the results, you must decide:
-        1. **MODIFY ACTIONS**: If execution needs improvement, provide modified actions with the same intent
-        2. **APPROVE**: If execution results are satisfactory, provide final outputs for trajectory collection
-        
-        ## Original Context (from initial generation)
-        
-        **Domain Rules:**
-        {original_context.get('domain_rules', 'None provided')}
-        
-        **API Dependencies:**
-        {original_context.get('api_dependencies', 'None provided')}
-        
-        **Available Tools:**
-        {json.dumps(original_context.get('tools_schema', {}), indent=2, ensure_ascii=False)[:2000]}...
-        
-        **Example Tasks:**
-        {original_context.get('examples', 'None provided')}
+        You are reviewing the execution results of blueprint actions. Your ONLY job is to decide whether to approve or modify, with clear reasoning.
         
         ## Current Blueprint
         
-        **User Intent (DO NOT MODIFY):**
+        **User Intent:**
         {user_intent}
         
-        **Current Actions:**
+        **Thought Process:**
+        {thought_process}
+        
+        **Executed Actions:**
         {actions_json}
         
         ## Execution Results
@@ -419,44 +414,27 @@ class IterativeBlueprintGenerator:
         
         ## Decision Guidelines
         
-        **MODIFY ACTIONS** if:
-        - Execution failed or produced poor results
-        - Wrong tools were used or wrong parameters provided
-        - Tool sequence needs adjustment for dependencies
-        - Results don't properly address the user intent
-        
         **APPROVE** if:
-        - All executions were successful with good results
+        - All executions were successful without wrong parameters or wrong tools
         - Results correctly address the user intent
         - Data quality is realistic and useful
-        - Tool usage follows proper dependencies
+        - Thought process aligns with execution results and the actions
+        
+        **MODIFY** if:
+        - Execution failed with wrong tools or wrong parameters provided
+        - Tool sequence needs adjustment for dependencies
+        - Execution results don't properly address the user intent
+        - Thought process contradicts execution results and the actions
         
         ## Response Format
         
-        Provide your decision in this JSON format:
+        Provide ONLY your decision in this JSON format:
         
-        **For MODIFY ACTIONS:**
         ```json
         {{
-            "approved": false,
+            "approved": true/false,
             "confidence": float (0.0-1.0),
-            "reasoning": "Why actions need modification",
-            "modified_actions": [
-                {{
-                    "name": "tool_name",
-                    "arguments": {{"param": "value"}}
-                }}
-            ]
-        }}
-        ```
-        
-        **For APPROVE:**
-        ```json
-        {{
-            "approved": true,
-            "confidence": float (0.0-1.0),
-            "reasoning": "Why execution is satisfactory",
-            "final_outputs": ["Summary 1", "Summary 2", ...] // Based on execution results
+            "reasoning": "Clear explanation of why you approve or need modifications"
         }}
         ```
         
@@ -471,10 +449,10 @@ class IterativeBlueprintGenerator:
             print(completion.choices[0].message.content)
             print("------------------------------------------\n")
         
-        return self._parse_execution_review_response(completion.choices[0].message.content or "")
+        return self._parse_simple_review_response(completion.choices[0].message.content or "")
     
-    def _parse_execution_review_response(self, response: str) -> ReviewDecision:
-        """Parse the execution review response with support for action modification."""
+    def _parse_simple_review_response(self, response: str) -> ReviewDecision:
+        """Parse the simplified review response (approve/modify only)."""
         json_text = _extract_json_block(response)
         
         try:
@@ -484,112 +462,19 @@ class IterativeBlueprintGenerator:
             confidence = float(data.get("confidence", 0.0))
             reasoning = data.get("reasoning", "")
             
-            if approved:
-                final_outputs = data.get("final_outputs", [])
-                if not final_outputs:
-                    final_outputs = ["Action execution completed successfully"]
-                
-                decision = ReviewDecision(
-                    approved=True,
-                    feedback=reasoning,
-                    final_outputs=final_outputs,
-                    confidence_score=confidence
-                )
-            else:
-                # Parse modified actions
-                modified_actions_data = data.get("modified_actions", [])
-                modified_actions = []
-                
-                for action_data in modified_actions_data:
-                    if isinstance(action_data, dict):
-                        name = action_data.get("name", "")
-                        arguments = action_data.get("arguments", {})
-                        if name:
-                            modified_actions.append(ToolCalling(name=name, arguments=arguments))
-                
-                decision = ReviewDecision(
-                    approved=False,
-                    feedback=reasoning,
-                    confidence_score=confidence
-                )
-                # Add modified actions as custom attribute
-                decision.modified_actions = modified_actions
-                
-            return decision
+            return ReviewDecision(
+                approved=approved,
+                feedback=reasoning,
+                confidence_score=confidence
+            )
             
         except (json.JSONDecodeError, ValueError) as e:
             return ReviewDecision(
                 approved=False,
-                feedback=f"Failed to parse execution review response: {str(e)}",
+                feedback=f"Failed to parse review response: {str(e)}",
                 confidence_score=0.0
             )
     
-    def _regenerate_actions_from_feedback(
-        self, 
-        intent: str, 
-        feedback: str, 
-        original_context: Dict[str, Any]
-    ) -> List[ToolCalling]:
-        """Fallback: regenerate actions based on feedback if no modified actions provided."""
-        
-        prompt = textwrap.dedent(f"""
-        ## Task: Modify Actions Based on Execution Feedback
-        
-        Generate modified actions for the following intent based on execution feedback.
-        Keep the intent unchanged, only modify the actions.
-        
-        **Intent (DO NOT CHANGE):**
-        {intent}
-        
-        **Execution Feedback:**
-        {feedback}
-        
-        **Available Tools:**
-        {json.dumps(original_context.get('tools_schema', {}), indent=2, ensure_ascii=False)[:1000]}...
-        
-        **Domain Rules:**
-        {original_context.get('domain_rules', 'None provided')}
-        
-        ## Response Format
-        
-        Provide only the modified actions in JSON format:
-        
-        ```json
-        {{
-            "actions": [
-                {{
-                    "name": "tool_name",
-                    "arguments": {{"param": "value"}}
-                }}
-            ]
-        }}
-        ```
-        """).strip()
-        
-        messages = [{"role": "user", "content": prompt}]
-        completion = sync_request_llm(self.llm_config, messages, generation_config=self.gen_opts)
-        response = completion.choices[0].message.content or ""
-        
-        # Parse response
-        json_text = _extract_json_block(response)
-        try:
-            data = json.loads(json_text)
-            actions_data = data.get("actions", [])
-            
-            actions = []
-            for action_data in actions_data:
-                if isinstance(action_data, dict):
-                    name = action_data.get("name", "")
-                    arguments = action_data.get("arguments", {})
-                    if name:
-                        actions.append(ToolCalling(name=name, arguments=arguments))
-            
-            return actions if actions else [ToolCalling(name="fallback", arguments={})]
-            
-        except (json.JSONDecodeError, ValueError):
-            # Ultimate fallback
-            return [ToolCalling(name="general_knowledge_retrieval", arguments={"query": intent})]
-
 
 def generate_validated_blueprint(
     llm_cfg: LLMConfig,
