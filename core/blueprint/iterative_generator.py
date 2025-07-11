@@ -22,6 +22,7 @@ from core.llm_client import sync_request_llm
 from core.mcp_client import MCPClient
 from .pipeline import Blueprint, BlueprintValidator, ReviewCommittee, _extract_json_block, _extract_thought_block
 from .action_executor import ActionExecutor
+from core.agentcortex import AgentCortexActionExecutor
 from .execution_reviewer import ExecutionReviewer, ReviewDecision
 from .action_modifier import ActionModifier
 from .output_generator import OutputGenerator
@@ -182,7 +183,9 @@ class IterativeBlueprintGenerator:
         self.stage1_generator = Stage1Generator(llm_config, gen_opts)
         self.validator = BlueprintValidator(tools_schema)
         self.committee = ReviewCommittee(llm_config, gen_opts=gen_opts, tools_schema=tools_schema)
-        self.action_executor = ActionExecutor(mcp_client, debug=debug)
+        # Use AgentCortex action executor for realistic Lenovo service execution
+        from config import mcp_config
+        self.action_executor = AgentCortexActionExecutor(mcp_config["executor_url"])
         self.execution_reviewer = ExecutionReviewer(llm_config, gen_opts)
         self.action_modifier = ActionModifier(llm_config, gen_opts or BLUEPRINT_GENERATION_OPTIONS)
         self.output_generator = OutputGenerator(llm_config, gen_opts or BLUEPRINT_GENERATION_OPTIONS)

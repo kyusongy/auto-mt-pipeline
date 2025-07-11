@@ -30,6 +30,8 @@ from config import (
     EXAMPLE_TASK,
     DEFAULT_PIPELINE_CONFIG,
     mcp_config,
+    is_agentcortex_enabled,
+    agentcortex_config,
 )
 from core.blueprint.iterative_generator import generate_validated_blueprint
 from core.trajectory.pipeline import TrajectoryCollector
@@ -94,6 +96,21 @@ def main():
     print("="*60)
     print("🚀 Auto MT Pipeline - MCP Integration")
     print("="*60)
+    
+    # Check if AgentCortex integration is enabled
+    if is_agentcortex_enabled():
+        print("🧠 AgentCortex Integration: ENABLED (Full AgentCortex Services)")
+        print("   ✓ Planning service:", agentcortex_config.planning_url)
+        print("   ✓ Execution service:", agentcortex_config.execution_url)
+        print("   ✓ Session memory service:", agentcortex_config.session_memory_url)
+        print("   ✓ Personalization service:", agentcortex_config.personalization_url)
+    else:
+        print("❌ AgentCortex Integration: DISABLED")
+        print("   To use AgentCortex integration, set AGENTCORTEX_ENABLED=true")
+        print("   This pipeline requires AgentCortex services to be running.")
+        print("   Exiting...")
+        return False
+    print()
     
     # Get tool schemas (MCP or fallback)
     tools_schema, mcp_client = get_tool_schemas()

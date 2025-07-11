@@ -55,6 +55,8 @@ from config import (
     TRAJECTORY_JUDGE_OPTIONS,
     TRAJECTORY_AGENT_OPTIONS,
     ASSISTANT_AGENT_OPTIONS,
+    mcp_config,
+    is_agentcortex_enabled,
 )
 from core.models import ToolCalling
 from core.llm_client import sync_request_llm
@@ -311,6 +313,7 @@ class TrajectoryCollector:
         tools_schema: Optional[Dict[str, Any]] = None,
         debug: bool = False,
         bon_n: int = 1,
+        use_plan_execute_agent: bool = True,  # Use AgentCortex Plan+Execute by default
     ):
         """Collect trajectories.
 
@@ -318,13 +321,27 @@ class TrajectoryCollector:
         generation).  Providing it allows the agent to see argument structure and
         increases the chance it will emit correct function calls.
         bon_n: Best-of-N sampling for human simulation (1 = no sampling, >1 = generate N candidates and pick best)
+        use_plan_execute_agent: Use AgentCortex Plan+Execute agent instead of QwenTestAgent
         """
         self.human = SimulatedHuman(human_cfg, bon_n=bon_n, debug=debug)
-        self.agent = QwenTestAgent(
-            agent_cfg,
-            ASSISTANT_AGENT_OPTIONS,
-            tool_names=list((tools_schema or {}).keys()) if tools_schema else None,
-        )
+        
+        # Use AgentCortex Plan+Execute agent (required)
+        if use_plan_execute_agent:
+            print("🧠 Using Qwen Planning + AgentCortex Execution (training data generation)")
+            from core.agentcortex import PlanExecuteAgent
+            self.agent = PlanExecuteAgent(
+                llm_cfg=agent_cfg,
+                generation_opts=ASSISTANT_AGENT_OPTIONS,
+                tool_names=list((tools_schema or {}).keys()) if tools_schema else None
+            )
+        else:
+            print("🤖 Using original QwenTestAgent")
+            self.agent = QwenTestAgent(
+                agent_cfg,
+                ASSISTANT_AGENT_OPTIONS,
+                tool_names=list((tools_schema or {}).keys()) if tools_schema else None,
+            )
+        
         self.tools_schema = tools_schema or {}
         self.debug = debug
 

@@ -19,6 +19,15 @@ from .defaults import (
 )
 from .config import llm_config, generation_config, pipeline_config, mcp_config
 
+# AgentCortex configuration
+try:
+    from .agentcortex_config import agentcortex_config, is_agentcortex_enabled, get_service_config
+except ImportError:
+    # Fallback if agentcortex config is not available
+    agentcortex_config = None
+    is_agentcortex_enabled = lambda: False
+    get_service_config = lambda: {}
+
 
 class Config:
     """Configuration manager that provides easy access to all settings using environment variables."""
@@ -197,4 +206,9 @@ __all__ = [
     "LLMConfig",
     "PipelineConfig",
     "GenerationOptions",
+    # AgentCortex exports
+    "agentcortex_config",
+    "is_agentcortex_enabled", 
+    "get_service_config",
+    "mcp_config",
 ]
