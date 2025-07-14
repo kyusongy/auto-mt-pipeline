@@ -6,7 +6,7 @@ This service uses the real AgentCortex execution service from agentcortex-lsa,
 providing authentic Lenovo service execution for data generation.
 """
 
-from typing import List
+from typing import List, Dict, Any, Optional
 
 from agent_types.common import Tool
 from agent_types.execution import ToolExecutingRequest, ToolExecutingResponse
@@ -15,11 +15,15 @@ from agent_types.execution import ToolExecutingRequest, ToolExecutingResponse
 class ExecutionService:
     """Tool execution service using AgentCortex services, following agentcortex-lsa patterns."""
     
-    def __init__(self, executor_url: str = None):
-        """Initialize execution service using AgentCortex services only.
+    def __init__(self, executor_url: str = None, tools_schema: Optional[Dict[str, Any]] = None):
+        """Initialize execution service.
+        
+        If tools_schema is provided, it will be used directly. Otherwise, tools
+        will be loaded from the AgentCortex execution service.
         
         Args:
             executor_url: Ignored - only kept for backward compatibility
+            tools_schema: Optional dictionary of tool schemas to use directly
         """
         from config.agentcortex_config import is_agentcortex_enabled
         
@@ -34,10 +38,27 @@ class ExecutionService:
         self.service_clients = service_clients
         print("🔧 ExecutionService: Using AgentCortex execution service")
         
-        # Get available tools from AgentCortex
-        self.tools = self._load_tools()
+        # If tool schemas are passed directly, use them; otherwise, load from service
+        if tools_schema:
+            self.tools = self._load_tools_from_schema(tools_schema)
+        else:
+            self.tools = self._load_tools_from_service()
         
-    def _load_tools(self) -> List[Tool]:
+    def _load_tools_from_schema(self, tools_schema: Dict[str, Any]) -> List[Tool]:
+        """Load tools from a provided schema dictionary."""
+        tools = []
+        for tool_name, schema in tools_schema.items():
+            # Create a Tool object from the schema
+            tool_data = {
+                "name": tool_name,
+                "description": schema.get("description", ""),
+                "parameters": schema.get("parameters", {})
+            }
+            tools.append(Tool.model_validate(tool_data))
+        print(f"✅ ExecutionService loaded {len(tools)} tools from provided schema")
+        return tools
+
+    def _load_tools_from_service(self) -> List[Tool]:
         """Load tools from AgentCortex execution service, following agentcortex workflow.py pattern."""
         try:
             # Get tools from AgentCortex execution service

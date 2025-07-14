@@ -41,9 +41,9 @@ class ActionExecutionSummary:
 class AgentCortexActionExecutor:
     """Simple action executor using AgentCortex ExecutionService for blueprint validation."""
     
-    def __init__(self, executor_url: str):
-        """Initialize with MCP executor URL."""
-        self.execution_service = ExecutionService(executor_url)
+    def __init__(self, executor_url: str, tools_schema: Optional[Dict[str, Any]] = None):
+        """Initialize with MCP executor URL and optional tool schemas."""
+        self.execution_service = ExecutionService(executor_url, tools_schema=tools_schema)
         
     def execute_actions(
         self, 

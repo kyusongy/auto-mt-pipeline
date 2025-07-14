@@ -49,7 +49,7 @@ generation_config = {
     "blueprint_max_tokens": 8192,
     
     # Trajectory collection - customer simulator (consistency for realistic behavior)
-    "trajectory_temperature": 0.3,
+    "trajectory_temperature": 0.7,
     "trajectory_max_tokens": 4096,
     
     # Retail assistant agent (balance between helpful and deterministic)

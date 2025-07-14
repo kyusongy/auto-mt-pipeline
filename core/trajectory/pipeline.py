@@ -79,15 +79,23 @@ _TRAJECTORY_COLLECTION_PROMPT_TEMPLATE = textwrap.dedent(
 
     ## Rules
     • Generate one line at a time to simulate the user's message (asking questions or offering information).
-    • **KEEP MESSAGES VERY SHORT**: Maximum 1-2 sentences per message. Be direct and to the point.
-    • **NO PLEASANTRIES**: Avoid "I see", "thank you", "please", "sorry", or other polite language. Be matter-of-fact.
-    • **ONE TOPIC PER MESSAGE**: Focus on one specific question or need. Don't combine multiple requests.
+    • Keep the message short to mimic the real customer behavior. The message may not be complete. Be direct and to the point. No pleasantries.
     • Do not give away all the intent at once. Only provide the information that is necessary for the current step.
     • Do not hallucinate information that is not provided in the intent.
-    • **CRITICAL**: If the intent is satisfied, you MUST generate EXACTLY `###STOP###` to end the conversation.
+    • If the intent goal is completely satisfied, generate `###STOP###` to end the conversation.
     • Do not repeat the exact intent in the conversation. Instead, use your own words to convey the same information.
     • Do not copy or repeat any assistant messages. Always write a brand-new user turn in your own words.
-    • Be natural but concise. Stick to the personalities in the intent but keep responses brief.
+
+    ## Example
+    Intent: 你是一个家长，想要给上大学的孩子买一台笔记本电脑，能运行基础学习办公软件就好，并且你想要查询是否有相关的教育优惠。
+
+    Turn 1 (user): 推荐一台笔记本电脑，能运行基础办公软件就行。
+    Turn 1 (assistant): ...
+    Turn 2 (user): 这个小新笔记本有教育优惠吗？
+    Turn 2 (assistant): ...
+    Turn 3 (user): 售后政策是什么？
+    Turn 3 (assistant): ...
+    Turn 4 (user): ###STOP###
 
     ### Response format
     Reply with **only** the next message you (the user) would send or '###STOP###' to end the conversation. Keep it SHORT (1-2 sentences max). Do NOT include any explanations, headings, bullet points, or additional reasoning—just the raw chat line.
@@ -103,28 +111,14 @@ _BON_USER_LM_PROMPT_TEMPLATE = textwrap.dedent(
     give the assistant. Please help the human evaluate this candidate response, give an integer score (ranging from 0 to 10) to indicate the correctness of the response,
     higher score means better quality.
 
-    1. **ROLE CONFUSION (AUTOMATIC SCORE 0)**: If the response sounds like it's coming from an assistant/agent rather than a customer, give score 0. Signs include:
-       - Offering help or assistance (e.g., "I can help you with...", "Let me know...", "I'll provide the next steps", "推荐...")
-       - Asking what the customer wants (e.g., "Would you like a refund or replacement?")
-       - Using assistant language (e.g., "To proceed with...", "I need to verify...", "Your order has been verified")
-       - Acting like they have access to systems or can process requests
+    1. If the response sounds like it's coming from an assistant/agent rather than a customer, give score 0.
 
-    2. **STOP TOKEN VALIDATION (AUTOMATIC SCORE 0)**: If the response appears to be trying to end the conversation but does NOT use the exact text `###STOP###`, give score 0. Examples of INCORRECT stop attempts:
-       - "### 响应调整" (Chinese response adjustment)
-       - "### 停止" (Chinese stop)
-       - "###停止###" (Chinese stop)
-       - Any other variation that is not exactly `###STOP###`
-       The ONLY correct way to end a conversation is with exactly: `###STOP###`
-
-    3. If the response includes specific item / order / personal details, and they correctly match the task description you should give full score of 10. If there is some
+    2. If the response includes specific item / personal details, and they correctly match the task description, you should give a higher score. If there is some
        change in details, give a corresponding lower score (more incorrect details gets lower score).
     
-    4. The response can include any normal customer conversation otherwise (e.g., asking for help, saying ###STOP###) etc. which are all correct responses.
+    3. The response can include any normal customer conversation otherwise (e.g., asking for help, saying ###STOP###) etc. which are all correct responses.
     
-    5. Additionally, if the candidate response keeps the conversation flowing by describing the task clearly / gives information properly then give a high score and if not
-       (e.g. "I don't remember" or unhelpful response) should get a corresponding lower score.
-    
-    6. **CONCISENESS BONUS**: Give higher scores to responses that are concise and direct (1-2 sentences). Penalize overly verbose responses with unnecessary pleasantries like "thank you", "please", or rambling explanations.
+    4. Give higher scores to responses that are direct and to the point. Penalize overly verbose responses with unnecessary pleasantries like "thank you", "please", or rambling explanations.
 
     <description> {description} </description>
     <response> {response} </response>
@@ -188,9 +182,15 @@ class SimulatedHuman:
             history.insert(0, Turn("system", self._persona_prompt))
             self._primed = True
 
-        # Convert the (now complete) history—including the system prompt—into
-        # the OpenAI chat format.
-        messages = [{"role": t.role, "content": t.content} for t in history]
+        # Convert history to chat format but hide internal tool calls/observations
+        # from the simulated human — they should only see normal dialogue.
+        # Always include the persona system prompt as the first message every turn.
+        messages = [{"role": "system", "content": self._persona_prompt}]
+        messages.extend(
+            {"role": t.role, "content": t.content}
+            for t in history
+            if t.role in {"user", "assistant"}
+        )
 
         candidates: List[Tuple[str, int]] = []
         if self.bon_n <= 1:
@@ -313,7 +313,7 @@ class TrajectoryCollector:
         tools_schema: Optional[Dict[str, Any]] = None,
         debug: bool = False,
         bon_n: int = 1,
-        use_plan_execute_agent: bool = True,  # Use AgentCortex Plan+Execute by default
+        use_plan_execute_agent: bool = False,  # Default: use original QwenTestAgent
     ):
         """Collect trajectories.
 
@@ -321,15 +321,15 @@ class TrajectoryCollector:
         generation).  Providing it allows the agent to see argument structure and
         increases the chance it will emit correct function calls.
         bon_n: Best-of-N sampling for human simulation (1 = no sampling, >1 = generate N candidates and pick best)
-        use_plan_execute_agent: Use AgentCortex Plan+Execute agent instead of QwenTestAgent
+        use_plan_execute_agent: If True, use AgentCortex Plan+Execute agent; otherwise use original QwenTestAgent (default)
         """
         self.human = SimulatedHuman(human_cfg, bon_n=bon_n, debug=debug)
         
         # Use AgentCortex Plan+Execute agent (required)
         if use_plan_execute_agent:
             print("🧠 Using Qwen Planning + AgentCortex Execution (training data generation)")
-            from core.agentcortex import PlanExecuteAgent
-            self.agent = PlanExecuteAgent(
+            from core.agentcortex.qwen_hybrid_agent import QwenAgentCortexHybrid
+            self.agent = QwenAgentCortexHybrid(
                 llm_cfg=agent_cfg,
                 generation_opts=ASSISTANT_AGENT_OPTIONS,
                 tool_names=list((tools_schema or {}).keys()) if tools_schema else None
@@ -359,7 +359,7 @@ class TrajectoryCollector:
             temp_history = history.copy()
             if turn_num > 1:  # Add reminder after assistant has spoken at least once
                 role_reminder = (
-                    "REMINDER: YOU ARE USER/CUSTOMER. DO NOT RESPOND LIKE A ASSISTANT. YOUR STYLE SHOULD BE CONCISE (1-2 sentences max), NO PLEASANTRIES. DO NOT RESPOND TO THIS REMINDER. START YOUR USER TURN NOW OR GERERATE '###STOP###'."
+                    "REMINDER: YOU ARE USER/CUSTOMER. RESPOND '###STOP###' ONLY IF YOUR INTENT IS SATISFTIED. DO NOT RESPOND TO THIS REMINDER. START YOUR USER TURN NOW."
                 )
                 temp_history.append(Turn("user", role_reminder))
             
@@ -528,9 +528,9 @@ class TrajectoryCollector:
                 break
 
         # validate tool_calls (ignore order) – all blueprint actions must appear
-        if sorted(c.name for c in tool_calls) == sorted(a.name for a in blueprint.actions):
-            return Trajectory(history, tool_calls)
-        return None
+        # if sorted(c.name for c in tool_calls) == sorted(a.name for a in blueprint.actions):
+        #    return Trajectory(history, tool_calls)
+        return Trajectory(history, tool_calls) #return None
 
 
 

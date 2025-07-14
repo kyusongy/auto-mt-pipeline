@@ -127,9 +127,8 @@ class ExecutionReviewer:
         
         1. **Correctness**: Do the execution results correctly address the user intent?
         2. **Completeness**: Are all necessary steps completed successfully?
-        3. **Domain Compliance**: Do the results follow the domain rules and policies?
-        4. **Data Quality**: Are the execution results realistic and useful?
-        5. **Tool Usage**: Were the right tools used in the correct sequence?
+        3. **Data Quality**: Are the execution results realistic and useful?
+        4. **Tool Usage**: Were the right tools used in the correct sequence?
         
         ## Decision Options
         

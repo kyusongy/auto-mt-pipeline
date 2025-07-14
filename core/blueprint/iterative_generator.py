@@ -185,7 +185,10 @@ class IterativeBlueprintGenerator:
         self.committee = ReviewCommittee(llm_config, gen_opts=gen_opts, tools_schema=tools_schema)
         # Use AgentCortex action executor for realistic Lenovo service execution
         from config import mcp_config
-        self.action_executor = AgentCortexActionExecutor(mcp_config["executor_url"])
+        self.action_executor = AgentCortexActionExecutor(
+            mcp_config["executor_url"],
+            tools_schema=self.tools_schema
+        )
         self.execution_reviewer = ExecutionReviewer(llm_config, gen_opts)
         self.action_modifier = ActionModifier(llm_config, gen_opts or BLUEPRINT_GENERATION_OPTIONS)
         self.output_generator = OutputGenerator(llm_config, gen_opts or BLUEPRINT_GENERATION_OPTIONS)

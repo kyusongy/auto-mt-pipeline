@@ -116,7 +116,8 @@ def filter_mcp_parameters(tool_schema: Dict[str, Any]) -> Dict[str, Any]:
         "longitude", "device_ip", "get_position_permisson", "event",
         "bind_mobile_id", "chat_history", "mentions", "session_preference"
     }
-    
+
+
     filtered_schema = tool_schema.copy()
     
     # Handle the actual MCP format which uses input_schema
@@ -141,12 +142,13 @@ def filter_mcp_parameters(tool_schema: Dict[str, Any]) -> Dict[str, Any]:
         # Convert to the format expected by Qwen Agent
         filtered_schema["parameters"] = filtered_properties
         
-        print(f"🔧 Filtered tool '{tool_schema.get('name', 'unknown')}': {len(original_properties)} -> {len(filtered_properties)} params")
-        print(f"   Removed MCP params: {set(original_properties.keys()) - set(filtered_properties.keys())}")
+        
+        
         
     else:
-        print(f"⚠️  Tool schema format not recognized for '{tool_schema.get('name', 'unknown')}'")
-    
+        # No special handling needed when tool schema doesn't match expected format
+        pass
+
     return filtered_schema
 
 
@@ -161,10 +163,17 @@ def get_mcp_tool_schemas(mcp_client: MCPClient) -> Dict[str, Dict[str, Any]]:
     # libentry APIClient returns tools directly under 'tools' key
     tools = tools_response.get("tools", [])
     
+    # Tools that should be ignored during blueprint generation
+    _ignored_tools = {"solution_click_event", "product_params_compare"}
+
     filtered_schemas = {}
     for tool in tools:
-        if isinstance(tool, dict) and "name" in tool:
-            filtered_schema = filter_mcp_parameters(tool)
-            filtered_schemas[tool["name"]] = filtered_schema
+        if not (isinstance(tool, dict) and "name" in tool):
+            continue
+        # Skip tools we don't want the agent to plan for
+        if tool["name"] in _ignored_tools:
+            continue
+        filtered_schema = filter_mcp_parameters(tool)
+        filtered_schemas[tool["name"]] = filtered_schema
     
     return filtered_schemas 

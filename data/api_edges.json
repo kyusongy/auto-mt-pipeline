@@ -1,14 +1,6 @@
 [
   {
     "source": "product_recommend",
-    "target": "product_params_compare",
-    "mapping": {
-      "item_list": "product_ids_to_compare"
-    },
-    "rationale": "Compare parameters of the recommended SKUs"
-  },
-  {
-    "source": "product_recommend",
     "target": "product_discount_retrieval",
     "mapping": {
       "item_list": "sku_ids"
@@ -29,13 +21,5 @@
     "target": "customer_service",
     "mapping": {},
     "rationale": "User asks to contact store – escalate to human agent"
-  },
-  {
-    "source": "to_b_retrieval",
-    "target": "solution_click_event",
-    "mapping": {
-      "solution": "title"
-    },
-    "rationale": "Click event for chosen solution"
   }
 ]

@@ -75,9 +75,7 @@ def get_tool_schemas():
         schemas = get_mcp_tool_schemas(mcp_client)
         
         if schemas:
-            print(f"✅ Loaded {len(schemas)} tools from MCP service:")
-            for name, schema in schemas.items():
-                print(f"   - {name}: {schema.get('description', 'No description')[:60]}...")
+            print(f"✅ Loaded {len(schemas)} tools from MCP service")
             return schemas, mcp_client
         else:
             raise Exception("No tools returned from MCP service")
@@ -205,9 +203,21 @@ def main():
         tools_schema=tools_schema,
         debug=pipeline_config.debug,
         bon_n=pipeline_config.bon_n,  # Enable best-of-N sampling
+        use_plan_execute_agent=True,  # Enable Qwen+AgentCortex hybrid execution
     )
-    
-    trajectory = collector.collect(blueprint)
+
+    # --------------------------------------------------------------
+    # Try to collect a valid trajectory up to 3 times for this
+    # approved blueprint (stochastic generation may sometimes fail)
+    # --------------------------------------------------------------
+    max_collect_attempts = 3
+    trajectory = None
+    for collect_attempt in range(1, max_collect_attempts + 1):
+        print(f"\n🎬 Trajectory collection attempt {collect_attempt}/{max_collect_attempts}")
+        trajectory = collector.collect(blueprint)
+        if trajectory:
+            break
+        print("⚠️  Trajectory rejected. Retrying...")
 
     if trajectory:
         print(f"\n✅ Successfully collected trajectory with {len(trajectory.turns)} turns")
@@ -223,23 +233,49 @@ def main():
             if t.role != "system":
                 print(f"[{tag}] {t.content}")
         
-        # Save complete trajectory  
-        trajectory_data = {
-            "blueprint": blueprint_data,
-            "trajectory": {
-                "turns": [{"role": t.role, "content": t.content} for t in trajectory.turns],
-                "tool_calls": [tc.model_dump() for tc in trajectory.tool_calls],
-            },
-            "metadata": {
-                "total_turns": len(trajectory.turns),
-                "tool_calls_made": len(trajectory.tool_calls),
-                "used_mcp": mcp_client is not None
-            }
-        }
-        
-        trajectory_file = output_dir / "trajectory.json"
-        trajectory_file.write_text(json.dumps(trajectory_data, indent=2, ensure_ascii=False))
-        print(f"\n💾 Complete trajectory saved to: {trajectory_file}")
+        # ------------------------------------------------------------------
+        # Persist approved trajectory in simplified conversation log format
+        # ------------------------------------------------------------------
+        simplified_turns = []
+        user_buffer = None
+        extra_buffer = ""
+        turn_id_counter = 0
+        for t in trajectory.turns:
+            if t.role == "user":
+                user_buffer = t.content
+                extra_buffer = ""
+            elif t.role in {"function_call", "function", "observation"}:
+                extra_buffer += t.content + "\n"
+            elif t.role == "assistant" and user_buffer is not None:
+                turn_id_counter += 1
+                simplified_turns.append({
+                    "turn_id": turn_id_counter,
+                    "query": user_buffer,
+                    "response": t.content,
+                    "extra_info": extra_buffer.strip()
+                })
+                user_buffer = None
+
+        session_data = {"turns": simplified_turns}
+
+        conversations_path = output_dir / "collected_sessions.json"
+        conversations_path.parent.mkdir(parents=True, exist_ok=True)
+        if conversations_path.exists():
+            try:
+                existing = json.loads(conversations_path.read_text(encoding="utf-8"))
+                if isinstance(existing, list):
+                    existing.append(session_data)
+                else:
+                    existing = [session_data]
+            except Exception:
+                existing = [session_data]
+        else:
+            existing = [session_data]
+
+        conversations_path.write_text(
+            json.dumps(existing, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
+        print(f"\n💾 Session appended to: {conversations_path}")
         
     else:
         print("\n❌ Failed to collect a valid trajectory")

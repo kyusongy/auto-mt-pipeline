@@ -40,7 +40,7 @@ def get_agentcortex_config() -> AgentCortexConfig:
     """
     
     # Check if AgentCortex is enabled
-    if not os.getenv("AGENTCORTEX_ENABLED", "false").lower() == "true":
+    if not os.getenv("AGENTCORTEX_ENABLED", "true").lower() == "true":
         # Return disabled config
         return AgentCortexConfig(
             intent_url="",

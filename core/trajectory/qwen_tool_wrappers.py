@@ -7,6 +7,7 @@ Each MCP tool is wrapped into a `BaseTool` subclass and auto-registered via
 """
 
 import json
+import os
 from typing import Any
 
 from qwen_agent.tools.base import BaseTool, register_tool  # type: ignore
@@ -17,6 +18,7 @@ from core.mcp_client import MCPClient, MCPConfig, get_mcp_tool_schemas
 
 # Global MCP client - will be initialized when tools are registered
 _mcp_client: MCPClient = None
+
 
 
 def initialize_mcp_client(executor_url: str = None):
@@ -69,8 +71,7 @@ def _make_mcp_tool_cls(name: str, spec: dict):
             # Extract query for context (if available)
             query = data.get("query", "")
             
-            print(f"🔧 Tool wrapper executing: {name}")
-            print(f"📤 Tool wrapper params: {data}")
+            
             
             try:
                 # Execute via MCP client
@@ -86,22 +87,22 @@ def _make_mcp_tool_cls(name: str, spec: dict):
                         if "error" in first_status:
                             error_info = first_status["error"]
                             error_msg = error_info.get("message", "Unknown error")
-                            print(f"❌ MCP tool execution failed: {error_msg}")
+                            
                             return f"工具执行失败: {error_msg}"
                         elif "result" in first_status:
                             # Success case - return the complete raw result
                             tool_result = first_status["result"]
                             result_json = json.dumps(tool_result, ensure_ascii=False, indent=2)
-                            print(f"✅ Tool wrapper returning raw result to Qwen Agent")
+                            
                             return result_json
                 
                 # Fallback for unexpected response format
-                print(f"❌ Unexpected MCP response format: {list(result.keys())}")
+                
                 return f"工具执行失败: 响应格式异常"
                 
             except Exception as e:
                 error_msg = f"Tool {name} execution failed: {str(e)}"
-                print(f"❌ {error_msg}")
+                
                 return f"工具执行出错: {error_msg}"
 
 
@@ -126,23 +127,20 @@ def register_mcp_tools(executor_url: str = None):
     # Get filtered tool schemas from MCP service
     tool_schemas = get_mcp_tool_schemas(_mcp_client)
     
-    print(f"Registering {len(tool_schemas)} MCP tools with Qwen Agent:")
+    
     
     # Generate Qwen tool classes for each MCP tool
     for tool_name, tool_spec in tool_schemas.items():
-        print(f"  - {tool_name}: {tool_spec.get('description', 'No description')[:60]}...")
+        
         _make_mcp_tool_cls(tool_name, tool_spec)
     
-    print("MCP tools registration complete.")
+    
 
 
 # Auto-register tools on import (with fallback for development)
 try:
     register_mcp_tools()  # Will use config automatically
 except Exception as e:
-    print(f"Warning: Could not register MCP tools: {e}")
-    print("Falling back to dummy tools for development...")
-    
     # Fallback to dummy tools for development when MCP is not available
     from tools import retail_tools as _d
     

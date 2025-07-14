@@ -103,14 +103,9 @@ def _build_generator_prompt(
         ## Guidelines for generating Groundtruth Actions (a_g t)
         1.  The main focus is to generate actions that help users with Lenovo products and services.
         2.  For actions that provide information requests, use appropriate tools like product_recommend, product_knowledge_retrieval, etc.
-        3.  Include multiple tool calls when the scenario requires comprehensive assistance (e.g., product recommendation + parameter comparison).
+        3.  Include multiple tool calls when the scenario requires comprehensive assistance.
         4.  Provide precise tool calls with all necessary parameters for each action.
         5.  Ensure all actions adhere to Lenovo service policies and help users make informed decisions.
-        6.  **Tool Chaining & Dependencies**: Some tools require outputs from previous tools as inputs:
-            - product_params_compare needs 'product_ids_to_compare' which comes from product_recommend output
-            - When creating multi-step workflows, structure actions in the correct order
-            - For dependent tools, use placeholder values that represent the expected output format
-            - Example: product_recommend → extract SKU IDs → product_params_compare with those IDs
 
         ## API Dependencies
         {api_dependencies}
