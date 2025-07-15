@@ -57,10 +57,18 @@ from config import (
     ASSISTANT_AGENT_OPTIONS,
     mcp_config,
     is_agentcortex_enabled,
+    agentcortex_config,
 )
 from core.models import ToolCalling
 from core.llm_client import sync_request_llm
 from core.blueprint.pipeline import Blueprint  # reuse dataclass from phase-1
+
+# AgentCortex LSA imports
+import json
+import uuid
+from business_components.workflow import Workflow, WorkflowConfig, Context
+from agent_types.common import Plan, ToolCalling as LsaToolCalling, Observation, ChatMessage
+from pydantic import BaseModel
 
 # Ensure tool wrappers are registered before Assistant is instantiated
 import core.trajectory.qwen_tool_wrappers  # noqa: F401  # registers tools via import side-effects
@@ -301,6 +309,124 @@ _AGENT_SYSTEM_PROMPT = (
 )
 
 # ---------------------------------------------------------------------------
+# Agent for Trajectory collection using agentcortex-lsa workflow
+# ---------------------------------------------------------------------------
+
+class LsaWorkflowAgent:
+    """Agent that uses agentcortex-lsa Workflow for planning and execution."""
+
+    def __init__(self, llm_cfg: LLMConfig, generation_opts: LLMGenOpts = None, tool_names: Optional[List[str]] = None):
+        # This agent will use QwenTestAgent as the planner.
+        self.planner = QwenTestAgent(llm_cfg, generation_opts, tool_names)
+
+        # We still need the workflow object to access its other components (execution, memory, etc.)
+        # but we will NOT be using its internal planner.
+        self.workflow = Workflow(WorkflowConfig(
+            intent_url=agentcortex_config.intent_url,
+            session_memory_url=agentcortex_config.session_memory_url,
+            system_memory_url=agentcortex_config.system_memory_url,
+            planning_url=agentcortex_config.planning_url,  # This is not used but required by the config
+            execution_url=agentcortex_config.execution_url,
+            summarization_url=agentcortex_config.summarization_url,
+            personalization_url=agentcortex_config.personalization_url,
+            extract_mentions_url=agentcortex_config.extract_mentions_url,
+            max_iterations=5,
+        ))
+        self.session_id = str(uuid.uuid4())
+
+    def respond(self, history: List[dict], tools_schema: List[dict]) -> list[dict]:
+        """Generate the next agent messages using the LSA workflow with Qwen as the planner."""
+        if not history or history[-1]['role'] != 'user':
+            return []
+
+        query = history[-1]['content']
+
+        # 1. Create and populate the context, same as the original workflow
+        default_args = {
+            "user_info": {"uid": "13716255679", "user_identity": 1, "available_num": 0.0, "current_amount": "0", "enterprise_name": "", "future_expire_num": 0.0, "level_name": "", "entry_source": "shop", "user_province": ""},
+            "trace_id": self.session_id,
+            "uid": "13716255679",
+            "terminal": "1",
+            "latitude": "23.89447712420573",
+            "longitude": "106.6172117534938",
+            "device_ip": "117.183.16.69",
+            "get_position_permission": "agree",
+            "event": "",  # 门店的case需要设置为"NAVIGATION_REQUEST"
+            "bind_mobile_id": 0,
+            "query": query,
+        }
+        context = Context(
+            session_id=self.session_id,
+            query=query,
+            tools=self.workflow.tools,
+            default_args=default_args
+        )
+
+        # 2. Pre-processing steps before planning
+        self.workflow.read_session_memory(context)
+        self.workflow.rewrite_query(context)
+        self.workflow.read_mentions(context)
+        self.workflow.read_session_preference(context)
+
+        # 3. Iterative Plan & Execute using Qwen as planner
+        for i in range(self.workflow.max_iterations):
+            # Use the full history for the planner
+            planner_history = history
+            if context.observations:
+                # Add tool execution results to history for the planner to see
+                for obs in context.observations:
+                    for status in obs.status:
+                        planner_history.append({
+                            'role': 'tool',
+                            'tool_call_id': status.tool_call_id,
+                            'name': status.tool_name,
+                            'content': json.dumps(status.result, ensure_ascii=False)
+                        })
+            
+            # Call Qwen planner
+            planner_response = self.planner.respond(planner_history, tools_schema)
+
+            # Translate Qwen response to LSA Plan
+            tool_calls = planner_response[0].get('tool_calls')
+            if tool_calls:
+                lsa_tool_callings = [
+                    LsaToolCalling(name=tc['function']['name'], arguments=json.loads(tc['function']['arguments']))
+                    for tc in tool_calls
+                ]
+                context.plan = Plan(tool_callings=lsa_tool_callings, content='')
+                context.finished = False
+            else:
+                # No tool calls, Qwen wants to respond directly. This ends the loop.
+                context.plan = Plan(tool_callings=[], content=planner_response[0].get('content', ''))
+                context.finished = True
+
+            if context.finished:
+                break
+
+            # 4. Execute the plan
+            self.workflow.execute(context)
+            if context.finished:
+                break
+        # 5. Finalize the response. The planner (Qwen) is responsible for summarization.
+        # When the loop finishes, the final response is in the content of the last plan.
+        final_response_content = context.plan.content if context.plan else None
+
+        if not final_response_content:
+            # This indicates the agent finished the loop without a final response.
+            raise ValueError("Agent failed to produce a final response.")
+
+        # Update context with the final response for memory writing
+        context.response = final_response_content
+
+        # Write to memory
+        self.workflow.write_user_message(context)
+        self.workflow.write_assistant_message(context)
+
+        # The trajectory collector expects a list of messages. We return the final content.
+        return [{'role': 'assistant', 'content': final_response_content}]
+
+
+# ---------------------------------------------------------------------------
 # Trajectory collector
 # ---------------------------------------------------------------------------
 
@@ -327,10 +453,9 @@ class TrajectoryCollector:
         
         # Use AgentCortex Plan+Execute agent (required)
         if use_plan_execute_agent:
-            print("🧠 Using Qwen Planning + AgentCortex Execution (training data generation)")
-            from core.agentcortex.qwen_hybrid_agent import QwenAgentCortexHybrid
-            self.agent = QwenAgentCortexHybrid(
-                llm_cfg=agent_cfg,
+            print("🧠 Using agentcortex-lsa Workflow for Trajectory Generation")
+            self.agent = LsaWorkflowAgent(
+                llm_cfg=agent_cfg, 
                 generation_opts=ASSISTANT_AGENT_OPTIONS,
                 tool_names=list((tools_schema or {}).keys()) if tools_schema else None
             )

@@ -58,7 +58,6 @@ def get_agentcortex_config() -> AgentCortexConfig:
     
     # Default URLs from lenovo_workflow.yml (can be overridden by env vars)
     default_base_url = os.getenv("AGENTCORTEX_BASE_URL", "http://10.110.130.250")
-    default_personalization_base = os.getenv("AGENTCORTEX_PERSONALIZATION_BASE", "http://10.110.131.30")
     
     return AgentCortexConfig(
         intent_url=os.getenv("AGENTCORTEX_INTENT_URL", f"{default_base_url}:22222"),
@@ -67,8 +66,8 @@ def get_agentcortex_config() -> AgentCortexConfig:
         planning_url=os.getenv("AGENTCORTEX_PLANNING_URL", f"{default_base_url}:11111"),
         summarization_url=os.getenv("AGENTCORTEX_SUMMARIZATION_URL", f"{default_base_url}:10087"),
         execution_url=os.getenv("AGENTCORTEX_EXECUTION_URL", f"{default_base_url}:15000"),
-        personalization_url=os.getenv("AGENTCORTEX_PERSONALIZATION_URL", f"{default_personalization_base}:8889"),
-        extract_mentions_url=os.getenv("AGENTCORTEX_EXTRACT_MENTIONS_URL", f"{default_personalization_base}:8890"),
+        personalization_url=os.getenv("AGENTCORTEX_PERSONALIZATION_URL", f"{default_base_url}:8889"),
+        extract_mentions_url=os.getenv("AGENTCORTEX_EXTRACT_MENTIONS_URL", f"{default_base_url}:8890"),
         max_iterations=int(os.getenv("AGENTCORTEX_MAX_ITERATIONS", "5")),
         mock_mode=os.getenv("AGENTCORTEX_MOCK_MODE", "false").lower() == "true",
         test_data_path=os.getenv("AGENTCORTEX_TEST_DATA_PATH", ""),

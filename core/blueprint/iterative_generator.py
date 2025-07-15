@@ -91,15 +91,9 @@ class Stage1Generator:
         ## Guidelines for generating Groundtruth Actions
         1.  The main focus is to generate actions that help users with Lenovo products and services.
         2.  For actions that provide information requests, use appropriate tools like product_recommend, product_knowledge_retrieval, etc.
-        3.  Include multiple tool calls when the scenario requires comprehensive assistance (e.g., product recommendation + parameter comparison, or multiple product_knowledge_retrieval).
-        4.  Provide precise tool calls with all necessary parameters for each action.
-        5.  Ensure all actions adhere to Lenovo service policies and help users make informed decisions.
-        6.  **Tool Chaining & Dependencies**: Some tools require outputs from previous tools as inputs:
-            - product_params_compare needs 'product_ids_to_compare' which comes from product_recommend output
-            - When creating multi-step workflows, structure actions in the correct order
-            - For dependent tools, use placeholder values that represent the expected output format
-            - Example: product_recommend → extract SKU IDs → product_params_compare with those IDs
-
+        3.  Include multiple tool calls when the scenario requires comprehensive assistance.
+        4.  Ensure all actions adhere to Lenovo service policies and help users make informed decisions.
+        
         ## API Dependencies
         {api_dependencies}
 
@@ -347,7 +341,21 @@ class IterativeBlueprintGenerator:
             try:
                 # Treat each execution iteration as a new session
                 session_id = str(uuid.uuid4())
-                context = Context(session_id=session_id, query=validated_intent)
+
+                # Create context with default arguments, similar to agentcortex-lsa's test runner
+                default_args = {
+                    "user_info": {"uid": "13716255679", "user_identity": 1, "available_num": 0.0, "current_amount": "0", "enterprise_name": "", "future_expire_num": 0.0, "level_name": "", "entry_source": "shop", "user_province": ""},
+                    "trace_id": session_id,
+                    "uid": "13716255679",
+                    "terminal": "1",
+                    "latitude": "23.89447712420573",
+                    "longitude": "106.6172117534938",
+                    "device_ip": "117.183.16.69",
+                    "get_position_permission": "agree",
+                    "event": "",
+                    "bind_mobile_id": 0,
+                }
+                context = Context(session_id=session_id, query=validated_intent, **default_args)
 
                 # Convert actions to agentcortex Plan
                 agentcortex_actions = [
