@@ -12,20 +12,47 @@ from __future__ import annotations
 import json
 import random
 import textwrap
+import uuid
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from openai.types.chat import ChatCompletionMessageParam
 
-from config import LLMConfig, GenerationOptions, BLUEPRINT_GENERATION_OPTIONS
-from core.models import ToolCalling
+from business_components.workflow import Context, Workflow, WorkflowConfig
+from agent_types.common import Plan
+from agent_types.common import ToolCalling as AgentCortexToolCalling
+from config import (LLMConfig, GenerationOptions, BLUEPRINT_GENERATION_OPTIONS, agentcortex_config)
 from core.llm_client import sync_request_llm
 from core.mcp_client import MCPClient
-from .pipeline import Blueprint, BlueprintValidator, ReviewCommittee, _extract_json_block, _extract_thought_block
-from .action_executor import ActionExecutor
-from core.agentcortex import AgentCortexActionExecutor
-from .execution_reviewer import ExecutionReviewer, ReviewDecision
+from core.models import ToolCalling
+
 from .action_modifier import ActionModifier
+from .execution_reviewer import ExecutionReviewer, ReviewDecision
 from .output_generator import OutputGenerator
+from .pipeline import (
+    Blueprint, BlueprintValidator, ReviewCommittee, _extract_json_block, _extract_thought_block
+)
+
+
+@dataclass
+class ExecutionResult:
+    """Container for tool execution results - compatible with blueprint pipeline."""
+    tool_name: str
+    arguments: Dict[str, Any]
+    success: bool
+    result: Any
+    error: Optional[str] = None
+    execution_time: Optional[float] = None
+
+
+@dataclass
+class ActionExecutionSummary:
+    """Summary of all action executions - compatible with blueprint pipeline."""
+    results: List[ExecutionResult]
+    total_actions: int
+    successful_actions: int
+    failed_actions: int
+    dependency_chain: List[str]  # Order of execution
 
 
 class Stage1Generator:
@@ -52,7 +79,7 @@ class Stage1Generator:
 
         prompt = textwrap.dedent(
             f"""
-            ## Instructions
+        ## Instructions
         Generate a task instruction that mimics realistic human users and their intentions, such as with different personality and goals. The task instruction should be
         followed by `actions` which is a list of the tool_calls to be taken to solve this task. Think step by step to come up with the action(s) and the corresponding 
         tool_call(s) translating this thought that would be necessary to fulfil the user's request or solve their intentions. Focus on common Lenovo customer scenarios 
@@ -164,7 +191,7 @@ class Stage1Generator:
 
 class IterativeBlueprintGenerator:
     """Generates validated blueprints through the new two-stage validation process."""
-    
+
     def __init__(
         self, 
         llm_config: LLMConfig, 
@@ -183,12 +210,24 @@ class IterativeBlueprintGenerator:
         self.stage1_generator = Stage1Generator(llm_config, gen_opts)
         self.validator = BlueprintValidator(tools_schema)
         self.committee = ReviewCommittee(llm_config, gen_opts=gen_opts, tools_schema=tools_schema)
-        # Use AgentCortex action executor for realistic Lenovo service execution
-        from config import mcp_config
-        self.action_executor = AgentCortexActionExecutor(
-            mcp_config["executor_url"],
-            tools_schema=self.tools_schema
-        )
+        
+        # Initialize AgentCortex Workflow
+        if agentcortex_config:
+            wf_config = WorkflowConfig(
+                session_memory_url=agentcortex_config.session_memory_url,
+                system_memory_url=agentcortex_config.system_memory_url,
+                intent_url=agentcortex_config.intent_url,
+                planning_url=agentcortex_config.planning_url,
+                execution_url=agentcortex_config.execution_url,
+                summarization_url=agentcortex_config.summarization_url,
+                max_iterations=agentcortex_config.max_iterations,
+                extract_mentions_url=agentcortex_config.extract_mentions_url,
+                personalization_url=agentcortex_config.personalization_url,
+            )
+            self.workflow = Workflow(wf_config)
+        else:
+            raise RuntimeError("AgentCortex config is not available, cannot initialize Workflow.")
+
         self.execution_reviewer = ExecutionReviewer(llm_config, gen_opts)
         self.action_modifier = ActionModifier(llm_config, gen_opts or BLUEPRINT_GENERATION_OPTIONS)
         self.output_generator = OutputGenerator(llm_config, gen_opts or BLUEPRINT_GENERATION_OPTIONS)
@@ -303,14 +342,59 @@ class IterativeBlueprintGenerator:
         for iteration in range(1, max_execution_iterations + 1):
             if self.debug:
                 print(f"\n🔄 Execution iteration {iteration}/{max_execution_iterations}")
-            
-            # Execute current actions
+
+            # Execute current actions using the agentcortex-lsa workflow
             try:
-                execution_summary = self.action_executor.execute_actions(current_actions, validated_intent)
+                # Treat each execution iteration as a new session
+                session_id = str(uuid.uuid4())
+                context = Context(session_id=session_id, query=validated_intent)
+
+                # Convert actions to agentcortex Plan
+                agentcortex_actions = [
+                    AgentCortexToolCalling(name=a.name, arguments=a.arguments)
+                    for a in current_actions
+                ]
+                context.plan = Plan(tool_callings=agentcortex_actions, content="")
+
+                # Execute the plan via the workflow
+                self.workflow.execute(context)
+
+                # Convert observations back to ActionExecutionSummary
+                results = []
+                dependency_chain = []
+                for i, status in enumerate(context.observations[0].status):
+                    action = current_actions[i]
+                    if status.error:
+                        result = ExecutionResult(
+                            tool_name=action.name,
+                            arguments=action.arguments,
+                            success=False,
+                            result=None,
+                            error=status.error.message,
+                        )
+                    else:
+                        result = ExecutionResult(
+                            tool_name=action.name,
+                            arguments=action.arguments,
+                            success=True,
+                            result=status.result,
+                            error=None,
+                        )
+                    results.append(result)
+                    dependency_chain.append(action.name)
                 
+                successful = sum(1 for r in results if r.success)
+                execution_summary = ActionExecutionSummary(
+                    results=results,
+                    total_actions=len(current_actions),
+                    successful_actions=successful,
+                    failed_actions=len(current_actions) - successful,
+                    dependency_chain=dependency_chain,
+                )
+
                 if self.debug:
                     print(f"🔧 Execution completed: {execution_summary.successful_actions}/{execution_summary.total_actions} successful")
-                
+
             except Exception as e:
                 if self.debug:
                     print(f"❌ Execution failed: {e}")

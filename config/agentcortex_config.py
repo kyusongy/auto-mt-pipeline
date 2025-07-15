@@ -16,7 +16,8 @@ class AgentCortexConfig(BaseModel):
     
     # Core service URLs (from lenovo_workflow.yml)
     intent_url: str
-    session_memory_url: str  
+    session_memory_url: str
+    system_memory_url: str
     planning_url: str
     summarization_url: str
     execution_url: str
@@ -39,12 +40,13 @@ def get_agentcortex_config() -> AgentCortexConfig:
     environment variables for flexibility.
     """
     
-    # Check if AgentCortex is enabled
-    if not os.getenv("AGENTCORTEX_ENABLED", "true").lower() == "true":
-        # Return disabled config
+    # Check if AgentCortex is enabled. Default to 'false' if not set.
+    if os.getenv("AGENTCORTEX_ENABLED", "false").lower() != "true":
+        # Return disabled config, ensuring all fields are present
         return AgentCortexConfig(
             intent_url="",
             session_memory_url="",
+            system_memory_url="",
             planning_url="",
             summarization_url="",
             execution_url="",
@@ -61,6 +63,7 @@ def get_agentcortex_config() -> AgentCortexConfig:
     return AgentCortexConfig(
         intent_url=os.getenv("AGENTCORTEX_INTENT_URL", f"{default_base_url}:22222"),
         session_memory_url=os.getenv("AGENTCORTEX_SESSION_MEMORY_URL", f"{default_base_url}:12306"),
+        system_memory_url=os.getenv("AGENTCORTEX_SYSTEM_MEMORY_URL", f"{default_base_url}:12307"),
         planning_url=os.getenv("AGENTCORTEX_PLANNING_URL", f"{default_base_url}:11111"),
         summarization_url=os.getenv("AGENTCORTEX_SUMMARIZATION_URL", f"{default_base_url}:10087"),
         execution_url=os.getenv("AGENTCORTEX_EXECUTION_URL", f"{default_base_url}:15000"),
@@ -89,6 +92,7 @@ def get_service_config() -> Dict[str, Any]:
     return {
         "intent_url": agentcortex_config.intent_url,
         "session_memory_url": agentcortex_config.session_memory_url,
+        "system_memory_url": agentcortex_config.system_memory_url,
         "planning_url": agentcortex_config.planning_url,
         "summarization_url": agentcortex_config.summarization_url,
         "execution_url": agentcortex_config.execution_url,
