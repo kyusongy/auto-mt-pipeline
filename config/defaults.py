@@ -75,7 +75,7 @@ class PipelineConfig(BaseModel):
         description="Best-of-N sampling for trajectory collection"
     )
     debug: bool = Field(
-        default=False,
+        default=True,
         description="Enable debug output"
     )
 

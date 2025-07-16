@@ -1,41 +1,38 @@
 {
-  "intent": "你是最近购买了联想笔记本电脑的一位用户，但在使用过程中遇到了键盘失灵的问题。你希望通过联想官方渠道预约维修服务，并且想知道这次维修大概需要支付多少费用。此外，你也很关心维修进度，希望能够及时了解维修状态。你性格比较细心，注重服务质量，希望通过正规渠道解决自己的问题。",
+  "intent": "你是一位大学教授，从事计算机科学的研究和教学工作。你最近需要更换一台笔记本电脑，主要用于日常教学、撰写论文和进行一些轻度的数据分析工作。你对联想的产品有一定了解，但希望得到专业的建议，确保选购的产品不仅性能强大，而且耐用可靠。你希望购买的产品能够在未来几年内保持良好的性能。你性格开朗，愿意接受新技术，同时也非常注重产品的性价比。",
   "actions": [
     {
-      "name": "book_maintenance",
+      "name": "product_recommend",
       "arguments": {
-        "query": "笔记本电脑 键盘失灵 预约维修"
+        "query": "笔记本 教学 科研 性能 强大 耐用",
+        "category": [
+          "笔记本"
+        ],
+        "request_brand_flag": true,
+        "request_brand": [
+          "ThinkPad",
+          "YOGA"
+        ]
       }
     },
     {
-      "name": "customer_service",
+      "name": "product_knowledge_retrieval",
       "arguments": {
-        "query": "查询维修费用 笔记本电脑 键盘失灵 请转人工服务"
+        "query": "ThinkPad 和 YOGA 系列笔记本的详细配置和性能对比",
+        "category": [
+          "笔记本"
+        ]
       }
     },
     {
-      "name": "customer_service",
-      "arguments": {
-        "query": "如何联系人工服务以获取维修费用信息"
-      }
-    },
-    {
-      "name": "enquire_maintenance",
-      "arguments": {
-        "query": "查询维修进度 笔记本电脑 键盘失灵 提示绑定手机号"
-      }
-    },
-    {
-      "name": "customer_service",
-      "arguments": {
-        "query": "如何绑定手机号以便查询维修进度"
-      }
+      "name": "education_discount_retrieval",
+      "arguments": {}
     }
   ],
   "outputs": [
-    "您已成功预约联想笔记本电脑的键盘维修服务，可通过提供的链接完成预约。",
-    "关于维修费用的查询，建议您联系联想客服的人工服务，选择适合的队列（如个人及家庭）以获取准确信息。",
-    "为了方便您查询维修进度，请先通过联想客服的人工服务绑定手机号至您的账户。"
+    "根据您的需求，我们为您推荐了多款适合教学和科研工作的联想笔记本电脑，特别是ThinkPad和YOGA系列，这些产品以其强大的性能和高耐用性著称。",
+    "提供了ThinkPad和YOGA系列笔记本的详细配置参数及性能对比，帮助您更全面地了解各款产品的特点，以便做出最佳选择。",
+    "查询到联想为教育机构用户提供多项优惠政策，包括多种额度的优惠券和分期付款免息券，您可以利用这些优惠降低购买成本。"
   ],
   "metadata": {
     "generation_method": "two_stage_iterative_validated",

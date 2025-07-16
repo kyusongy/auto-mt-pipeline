@@ -341,6 +341,11 @@ class LsaWorkflowAgent:
 
         query = history[-1]['content']
 
+        # Collect messages to return so that the TrajectoryCollector can display
+        # tool calls, function execution observations and the final answer just
+        # like the original agentcortex-lsa workflow does.
+        new_msgs: list[dict] = []
+
         # 1. Create and populate the context, same as the original workflow
         default_args = {
             "user_info": {"uid": "13716255679", "user_identity": 1, "available_num": 0.0, "current_amount": "0", "enterprise_name": "", "future_expire_num": 0.0, "level_name": "", "entry_source": "shop", "user_province": ""},
@@ -390,6 +395,20 @@ class LsaWorkflowAgent:
                 # Planner failed to return any message, stop to avoid infinite loop
                 raise ValueError("Planner returned empty response.")
             
+            # Push planner messages to `new_msgs` (convert the new `tool_calls` schema
+            # to the legacy `function_call` schema expected by the TrajectoryCollector).
+            for _m in planner_response:
+                if 'tool_calls' in _m and _m['tool_calls']:
+                    #   The collector understands only a single `function_call` field, so we
+                    #   keep the first call to preserve previous behaviour.
+                    first = _m['tool_calls'][0]['function']
+                    _legacy = _m.copy()
+                    _legacy.pop('tool_calls', None)
+                    _legacy['function_call'] = first
+                    new_msgs.append(_legacy)
+                else:
+                    new_msgs.append(_m)
+
             # Always consider the final message in the batch as the definitive one
             last_msg = planner_response[-1]
             # Append planner messages to history for the next iteration
@@ -422,6 +441,14 @@ class LsaWorkflowAgent:
             # 4. Execute the plan if there are tool calls to run
             if context.plan.tool_callings:
                 self.workflow.execute(context)
+                # After execution push the observation results so the caller can log them
+                if context.observations:
+                    for st in context.observations[-1].status:
+                        new_msgs.append({
+                            'role': 'function',
+                            'name': st.tool_name,
+                            'content': json.dumps(st.result, ensure_ascii=False)
+                        })
             if context.finished:
                 break
         # 5. Finalize the response. The planner (Qwen) is responsible for summarization.
@@ -439,8 +466,11 @@ class LsaWorkflowAgent:
         self.workflow.write_user_message(context)
         self.workflow.write_assistant_message(context)
 
-        # The trajectory collector expects a list of messages. We return the final content.
-        return [{'role': 'assistant', 'content': final_response_content}]
+        # Append the final assistant reply
+        new_msgs.append({'role': 'assistant', 'content': final_response_content})
+
+        # The trajectory collector expects the full list of messages in the current turn.
+        return new_msgs
 
 
 # ---------------------------------------------------------------------------
