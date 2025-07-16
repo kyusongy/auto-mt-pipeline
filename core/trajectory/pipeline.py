@@ -370,8 +370,8 @@ class LsaWorkflowAgent:
 
         # 3. Iterative Plan & Execute using Qwen as planner
         for i in range(self.workflow.max_iterations):
-            # Use the full history for the planner
-            planner_history = history
+            # Work on a copy so we don't mutate the outer collector's history reference
+            planner_history = list(history)
             if context.observations:
                 # Add tool execution results to history for the planner to see
                 for obs in context.observations:
@@ -384,27 +384,44 @@ class LsaWorkflowAgent:
                         })
             
             # Call Qwen planner
-            planner_response = self.planner.respond(planner_history, tools_schema)
-
-            # Translate Qwen response to LSA Plan
-            tool_calls = planner_response[0].get('tool_calls')
-            if tool_calls:
+            planner_response = self.planner.respond(planner_history, tools_schema) or []
+            
+            if not planner_response:
+                # Planner failed to return any message, stop to avoid infinite loop
+                raise ValueError("Planner returned empty response.")
+            
+            # Always consider the final message in the batch as the definitive one
+            last_msg = planner_response[-1]
+            # Append planner messages to history for the next iteration
+            history.extend(planner_response)
+            
+            # Detect tool calls – qwen-agent may use either the new 'tool_calls' field (array)
+            # or the legacy single 'function_call' field.
+            raw_tool_calls = []
+            if 'tool_calls' in last_msg and last_msg['tool_calls']:
+                raw_tool_calls = last_msg['tool_calls']
+            elif 'function_call' in last_msg and last_msg['function_call']:
+                # Normalise to the list[dict] format expected below
+                raw_tool_calls = [{"function": last_msg['function_call']}]
+            
+            if raw_tool_calls:
                 lsa_tool_callings = [
                     LsaToolCalling(name=tc['function']['name'], arguments=json.loads(tc['function']['arguments']))
-                    for tc in tool_calls
+                    for tc in raw_tool_calls
                 ]
                 context.plan = Plan(tool_callings=lsa_tool_callings, content='')
                 context.finished = False
             else:
                 # No tool calls, Qwen wants to respond directly. This ends the loop.
-                context.plan = Plan(tool_callings=[], content=planner_response[0].get('content', ''))
+                context.plan = Plan(tool_callings=[], content=last_msg.get('content', ''))
                 context.finished = True
 
             if context.finished:
                 break
 
-            # 4. Execute the plan
-            self.workflow.execute(context)
+            # 4. Execute the plan if there are tool calls to run
+            if context.plan.tool_callings:
+                self.workflow.execute(context)
             if context.finished:
                 break
         # 5. Finalize the response. The planner (Qwen) is responsible for summarization.
