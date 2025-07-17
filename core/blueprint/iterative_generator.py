@@ -85,6 +85,9 @@ class Stage1Generator:
         tool_call(s) translating this thought that would be necessary to fulfil the user's request or solve their intentions. Focus on common Lenovo customer scenarios 
         following the provided task instruction guidelines.
 
+        ## Persona
+        {persona}
+
         ## Guidelines for Generating Task Instruction
         {domain_rules}
         
