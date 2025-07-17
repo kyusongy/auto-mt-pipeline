@@ -236,25 +236,55 @@ def main():
         # ------------------------------------------------------------------
         # Persist approved trajectory in simplified conversation log format
         # ------------------------------------------------------------------
+        def safe_json_loads(s):
+            try:
+                return json.loads(s)
+            except Exception:
+                return s
+
         simplified_turns = []
         user_buffer = None
-        extra_buffer = ""
+        tool_calls_buffer = []
         turn_id_counter = 0
+        pending_tool = None
+
         for t in trajectory.turns:
             if t.role == "user":
                 user_buffer = t.content
-                extra_buffer = ""
-            elif t.role in {"function_call", "function", "observation"}:
-                extra_buffer += t.content + "\n"
+                tool_calls_buffer = []
+                pending_tool = None
+            elif t.role == "function_call":
+                call = safe_json_loads(t.content)
+                name = call.get("name", "") if isinstance(call, dict) else ""
+                arguments = call.get("arguments", "{}") if isinstance(call, dict) else "{}"
+                arguments = safe_json_loads(arguments)
+                pending_tool = {
+                    "name": name,
+                    "arguments": arguments,
+                    "output": None
+                }
+            elif t.role in {"function", "observation"}:
+                if pending_tool is not None:
+                    pending_tool["output"] = safe_json_loads(t.content)
+                    tool_calls_buffer.append(pending_tool)
+                    pending_tool = None
             elif t.role == "assistant" and user_buffer is not None:
                 turn_id_counter += 1
+                # Ensure all tool_info entries are serializable
+                for tool in tool_calls_buffer:
+                    if not isinstance(tool["arguments"], (dict, list, str, int, float, bool, type(None))):
+                        tool["arguments"] = str(tool["arguments"])
+                    if not isinstance(tool["output"], (dict, list, str, int, float, bool, type(None))):
+                        tool["output"] = str(tool["output"])
                 simplified_turns.append({
                     "turn_id": turn_id_counter,
                     "query": user_buffer,
                     "response": t.content,
-                    "extra_info": extra_buffer.strip()
+                    "tool_info": tool_calls_buffer
                 })
                 user_buffer = None
+                tool_calls_buffer = []
+                pending_tool = None
 
         session_data = {"turns": simplified_turns}
 

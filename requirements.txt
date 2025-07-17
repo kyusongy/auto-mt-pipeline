@@ -21,6 +21,9 @@ requests>=2.28.0
 # Configuration and data handling
 PyYAML>=6.0.0
 
+# Template engine for mention injection
+Jinja2>=3.1.0
+
 # Optional development and testing dependencies
 pytest>=7.0.0
 black>=23.0.0

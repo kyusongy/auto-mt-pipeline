@@ -344,9 +344,9 @@ class IterativeBlueprintGenerator:
 
                 # Create context with default arguments, similar to agentcortex-lsa's test runner
                 default_args = {
-                    "user_info": {"uid": "13716255679", "user_identity": 1, "available_num": 0.0, "current_amount": "0", "enterprise_name": "", "future_expire_num": 0.0, "level_name": "", "entry_source": "shop", "user_province": ""},
+                    "user_info": {"uid": "10208390957", "user_identity": 1, "available_num": 0.0, "current_amount": "0", "enterprise_name": "", "future_expire_num": 0.0, "level_name": "", "entry_source": "shop", "user_province": "北京"},
                     "trace_id": session_id,
-                    "uid": "13716255679",
+                    "uid": "10208390957",
                     "terminal": "1",
                     "latitude": "23.89447712420573",
                     "longitude": "106.6172117534938",

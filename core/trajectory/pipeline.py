@@ -21,6 +21,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 # Third-party imports
 import httpx
+from jinja2 import Template
 
 # Disable SSL verification globally to work around certificate issues with remote LLM endpoints
 # Disable SSL warnings
@@ -336,6 +337,56 @@ class LsaWorkflowAgent:
             max_iterations=5,
         ))
         self.session_id = str(uuid.uuid4())
+        
+        # Load the Jinja2 template for injecting mentions into user prompts
+        self._load_user_template()
+    
+    def _load_user_template(self):
+        """Load the hardcoded user.j2 template for mention injection."""
+        # Use hardcoded template based on the user.j2 content
+        template_content = """# Mentions
+以下是在会话中提到的信息，这些信息的名称或描述可能和工具的参数高度相关，在确定工具参数的时候一定好好参考以下信息。
+{%- if mentions %}
+    {%- for item in mentions %}
+        {%- if item.content %}
+            {{- "\\n" }}- 提到的**{{ item.name }}**: {{ item.content }}
+        {%- endif %}
+    {%- endfor %}
+{%- else %}
+    {{- "\\n" }}未指定，暂不考虑[提及](#Mentions)信息
+{%- endif %}
+
+# Task
+为了确保信息的实效性与可靠性，你要判断是否有足够的信息来解决（解答）这个任务，尽量找合适的工具来获取最新最全面的信息。如果工具参数所需的信息找不到，你可以回复以询问用户。
+
+{{ task }}"""
+        self.user_template = Template(template_content)
+        print("✅ Using hardcoded user.j2 template for mention injection")
+    
+    def _inject_mentions_into_user_message(self, original_query: str, context: Context) -> str:
+        """Inject mentions into the user message using the Jinja2 template."""
+        try:
+            # Extract mentions from context
+            mentions = []
+            if context.default_args and "mentions" in context.default_args:
+                mentions = context.default_args["mentions"]
+            
+            # Debug output
+            print(f"🔍 Injecting mentions into user message:")
+            print(f"   Original query: {original_query}")
+            print(f"   Found {len(mentions)} mentions: {mentions}")
+            
+            # Render the template with mentions and task
+            enhanced_query = self.user_template.render(
+                mentions=mentions,
+                task=original_query
+            )
+            
+            print(f"   Enhanced query: {enhanced_query}")
+            return enhanced_query
+        except Exception as e:
+            print(f"Warning: Failed to inject mentions into user message: {e}")
+            return original_query
 
     def respond(self, history: List[dict], tools_schema: List[dict]) -> list[dict]:
         """Generate the next agent messages using the LSA workflow with Qwen as the planner."""
@@ -351,9 +402,9 @@ class LsaWorkflowAgent:
 
         # 1. Create and populate the context, same as the original workflow
         default_args = {
-            "user_info": {"uid": "13716255679", "user_identity": 1, "available_num": 0.0, "current_amount": "0", "enterprise_name": "", "future_expire_num": 0.0, "level_name": "", "entry_source": "shop", "user_province": ""},
+            "user_info": {"uid": "10208390957", "user_identity": 1, "available_num": 0.0, "current_amount": "0", "enterprise_name": "", "future_expire_num": 0.0, "level_name": "", "entry_source": "shop", "user_province": "北京"},
             "trace_id": self.session_id,
-            "uid": "13716255679",
+            "uid": "10208390957",
             "terminal": "1",
             "latitude": "23.89447712420573",
             "longitude": "106.6172117534938",
@@ -372,7 +423,6 @@ class LsaWorkflowAgent:
 
         # 2. Pre-processing steps before planning
         self.workflow.read_session_memory(context)
-        # TODO: 
         self.workflow.rewrite_query(context)
         self.workflow.read_mentions(context)
         self.workflow.read_session_preference(context)
@@ -381,6 +431,18 @@ class LsaWorkflowAgent:
         for i in range(self.workflow.max_iterations):
             # Work on a copy so we don't mutate the outer collector's history reference
             planner_history = list(history)
+            
+            # Inject mentions into the user message for this iteration
+            if planner_history and planner_history[-1]['role'] == 'user':
+                enhanced_query = self._inject_mentions_into_user_message(
+                    planner_history[-1]['content'], context
+                )
+                # Replace the last user message with the enhanced version
+                planner_history[-1] = {
+                    'role': 'user',
+                    'content': enhanced_query
+                }
+            
             if context.observations:
                 # Add tool execution results to history for the planner to see
                 for obs in context.observations:
