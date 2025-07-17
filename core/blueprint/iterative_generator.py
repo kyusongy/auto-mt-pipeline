@@ -355,11 +355,39 @@ class IterativeBlueprintGenerator:
                     "event": "",
                     "bind_mobile_id": 0,
                 }
-                context = Context(session_id=session_id, query=validated_intent, **default_args)
+                context = Context(session_id=session_id, query=validated_intent, tools=self.workflow.tools, default_args=default_args)
+
+                # Initialize context with proper workflow initialization steps
+                # This mimics the initialization phase from pipeline.py and workflow.py
+                # These steps are crucial for proper tool execution as they:
+                # 1. Load session memory for context awareness
+                # 2. Rewrite query to improve understanding and tool parameter extraction
+                # 3. Extract mentions (product IDs, categories, etc.) for tool parameters
+                # 4. Extract user preferences for personalized responses
+                if self.debug:
+                    print(f"🔧 Initializing context for execution...")
+                
+                # Step 1: Read session memory
+                self.workflow.read_session_memory(context)
+                
+                # Step 2: Rewrite query for better understanding
+                self.workflow.rewrite_query(context)
+                
+                # Step 3: Extract mentions from the rewritten query
+                self.workflow.read_mentions(context)
+                
+                # Step 4: Extract session preferences
+                self.workflow.read_session_preference(context)
+                
+                if self.debug:
+                    print(f"🔧 Context initialized with:")
+                    print(f"   - Rewritten query: {context.rewrite_query}")
+                    print(f"   - Mentions: {len(context.session_memory.mentions) if context.session_memory and context.session_memory.mentions else 0}")
+                    print(f"   - Session preference: {context.session_memory.session_preference if context.session_memory else None}")
 
                 # Convert actions to agentcortex Plan
                 agentcortex_actions = [
-                    AgentCortexToolCalling(name=a.name, arguments=a.arguments)
+                    AgentCortexToolCalling(name=a.name, arguments=a.arguments or {})
                     for a in current_actions
                 ]
                 context.plan = Plan(tool_callings=agentcortex_actions, content="")
@@ -375,7 +403,7 @@ class IterativeBlueprintGenerator:
                     if status.error:
                         result = ExecutionResult(
                             tool_name=action.name,
-                            arguments=action.arguments,
+                            arguments=action.arguments or {},
                             success=False,
                             result=None,
                             error=status.error.message,
@@ -383,7 +411,7 @@ class IterativeBlueprintGenerator:
                     else:
                         result = ExecutionResult(
                             tool_name=action.name,
-                            arguments=action.arguments,
+                            arguments=action.arguments or {},
                             success=True,
                             result=status.result,
                             error=None,

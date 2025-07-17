@@ -306,7 +306,10 @@ _AGENT_SYSTEM_PROMPT = (
     "如果尝试多个工具都无法获取有用信息，一定不要自己尝试回答。\n"
     "如果工具返回的结果中包含“summary_constraints”属性，那么在最终回复的时候要按照这个属性要求的格式进行总结。\n"
     "[提及](#Mentions)是用户查询中提到的信息，在调用工具的时候，很多参数都会注明是用户提到的某项信息，所以你需要将#Mentions里面符合条件的内容作为工具参数\n"
+    "# Mentions:\n{mentions}"
 )
+
+
 
 # ---------------------------------------------------------------------------
 # Agent for Trajectory collection using agentcortex-lsa workflow
@@ -369,6 +372,7 @@ class LsaWorkflowAgent:
 
         # 2. Pre-processing steps before planning
         self.workflow.read_session_memory(context)
+        # TODO: 
         self.workflow.rewrite_query(context)
         self.workflow.read_mentions(context)
         self.workflow.read_session_preference(context)
