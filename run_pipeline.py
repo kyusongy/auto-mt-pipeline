@@ -52,7 +52,7 @@ output_dir.mkdir(exist_ok=True)
 
 # Enable debug output from blueprint generation
 import core.blueprint.pipeline as bp_pipeline
-bp_pipeline.GenerationOptions = lambda **kwargs: BLUEPRINT_GENERATION_OPTIONS.model_copy(update=kwargs)
+# Note: GenerationOptions is imported from config, not from bp_pipeline
 
 # ---------------------------------------------------------------------------
 # Main Pipeline
@@ -204,6 +204,8 @@ def main():
         debug=pipeline_config.debug,
         bon_n=pipeline_config.bon_n,  # Enable best-of-N sampling
         use_plan_execute_agent=True,  # Enable Qwen+AgentCortex hybrid execution
+        enable_validation=True,  # Enable trajectory validation
+        validation_llm_config=llm_config,  # Use same LLM for validation (can be different)
     )
 
     # --------------------------------------------------------------
@@ -220,22 +222,10 @@ def main():
         print("⚠️  Trajectory rejected. Retrying...")
 
     if trajectory:
-        print(f"\n✅ Successfully collected trajectory with {len(trajectory.turns)} turns")
-        print("\n📞 Conversation:")
-        for t in trajectory.turns:
-            if t.role == "user":
-                tag = "USER"
-            elif t.role == "assistant":
-                tag = "ASSISTANT"
-            else:
-                tag = t.role.upper()
-            # Only show non-system messages for readability
-            if t.role != "system":
-                print(f"[{tag}] {t.content}")
+        num_assistant_turns = sum(1 for t in trajectory.turns if t.role == "assistant")
+        print(f"\n✅ Successfully collected trajectory with {num_assistant_turns} turns")
         
-        # ------------------------------------------------------------------
-        # Persist approved trajectory in simplified conversation log format
-        # ------------------------------------------------------------------
+
         def safe_json_loads(s):
             try:
                 return json.loads(s)

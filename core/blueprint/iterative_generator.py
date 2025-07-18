@@ -381,6 +381,9 @@ class IterativeBlueprintGenerator:
                 
                 # Step 4: Extract session preferences
                 self.workflow.read_session_preference(context)
+
+                print("default_args:")
+                print(context.default_args)
                 
                 if self.debug:
                     print(f"🔧 Context initialized with:")

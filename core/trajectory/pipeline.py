@@ -63,6 +63,8 @@ from config import (
 from core.models import ToolCalling
 from core.llm_client import sync_request_llm
 from core.blueprint.pipeline import Blueprint  # reuse dataclass from phase-1
+from .models import Turn, Trajectory
+from .validator import TrajectoryValidator
 
 # AgentCortex LSA imports
 import json
@@ -140,17 +142,7 @@ _BON_USER_LM_PROMPT_TEMPLATE = textwrap.dedent(
 # Data-classes for interaction turns
 # ---------------------------------------------------------------------------
 
-
-@dataclass
-class Turn:
-    role: str  # "user" / "assistant"
-    content: str
-
-
-@dataclass
-class Trajectory:
-    turns: List[Turn]
-    tool_calls: List[ToolCalling]
+# Turn and Trajectory are now defined in models.py to avoid circular imports
 
 # ---------------------------------------------------------------------------
 # Simulated actors
@@ -426,6 +418,8 @@ class LsaWorkflowAgent:
         self.workflow.rewrite_query(context)
         self.workflow.read_mentions(context)
         self.workflow.read_session_preference(context)
+        print("default_args:")
+        print(context.default_args)
 
         # 3. Iterative Plan & Execute using Qwen as planner
         for i in range(self.workflow.max_iterations):
@@ -553,6 +547,8 @@ class TrajectoryCollector:
         debug: bool = False,
         bon_n: int = 1,
         use_plan_execute_agent: bool = False,  # Default: use original QwenTestAgent
+        enable_validation: bool = True,  # Enable trajectory validation
+        validation_llm_config: Optional[LLMConfig] = None,  # Separate LLM for validation
     ):
         """Collect trajectories.
 
@@ -561,6 +557,8 @@ class TrajectoryCollector:
         increases the chance it will emit correct function calls.
         bon_n: Best-of-N sampling for human simulation (1 = no sampling, >1 = generate N candidates and pick best)
         use_plan_execute_agent: If True, use AgentCortex Plan+Execute agent; otherwise use original QwenTestAgent (default)
+        enable_validation: If True, validate collected trajectories against the blueprint
+        validation_llm_config: LLM configuration for validation (if None, uses agent_cfg)
         """
         self.human = SimulatedHuman(human_cfg, bon_n=bon_n, debug=debug)
         
@@ -582,6 +580,20 @@ class TrajectoryCollector:
         
         self.tools_schema = tools_schema or {}
         self.debug = debug
+        self.enable_validation = enable_validation
+
+        # Initialize trajectory validator if validation is enabled
+        if self.enable_validation:
+            validation_cfg = validation_llm_config or agent_cfg
+            self.validator = TrajectoryValidator(
+                llm_config=validation_cfg,
+                generation_opts=TRAJECTORY_JUDGE_OPTIONS,
+                debug=debug
+            )
+            print(f"✅ Trajectory validation enabled using {validation_cfg.model}")
+        else:
+            self.validator = None
+            print("❌ Trajectory validation disabled")
 
         # Always use the predefined Lenovo sales assistant policy
         self.agent_system_prompt = _AGENT_SYSTEM_PROMPT
@@ -765,10 +777,28 @@ class TrajectoryCollector:
                 history.append(Turn("user", "###STOP###"))
                 break
 
-        # validate tool_calls (ignore order) – all blueprint actions must appear
-        # if sorted(c.name for c in tool_calls) == sorted(a.name for a in blueprint.actions):
-        #    return Trajectory(history, tool_calls)
-        return Trajectory(history, tool_calls) #return None
+        # Create trajectory
+        trajectory = Trajectory(history, tool_calls)
+        
+        # Validate trajectory if validation is enabled
+        if self.enable_validation and self.validator:
+            print(f"\n🔍 Validating collected trajectory...")
+            validation_result = self.validator.validate_trajectory(blueprint, trajectory)
+            
+            if validation_result.is_approved:
+                print(f"✅ Trajectory validation PASSED (Score: {validation_result.score}/8)")
+                if self.debug and validation_result.strengths:
+                    print(f"   Strengths: {', '.join(validation_result.strengths)}")
+                return trajectory
+            else:
+                print(f"❌ Trajectory validation FAILED (Score: {validation_result.score}/8)")
+                if self.debug:
+                    if validation_result.issues:
+                        print(f"   Issues: {', '.join(validation_result.issues)}")
+                return None
+        else:
+            # No validation - return trajectory as-is
+            return trajectory
 
 
 

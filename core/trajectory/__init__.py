@@ -21,6 +21,8 @@ All prompts are transcribed verbatim from the paper and exposed via helper
 functions so you can easily swap in your own data.
 """
 
-from .pipeline import TrajectoryCollector, SimulatedHuman, QwenTestAgent, Turn, Trajectory
+from .models import Turn, Trajectory, ValidationResult
+from .pipeline import TrajectoryCollector, SimulatedHuman, QwenTestAgent
+from .validator import TrajectoryValidator
 
-__all__ = ["TrajectoryCollector", "SimulatedHuman", "QwenTestAgent", "Turn", "Trajectory"] 
+__all__ = ["TrajectoryCollector", "SimulatedHuman", "QwenTestAgent", "Turn", "Trajectory", "TrajectoryValidator", "ValidationResult"] 
