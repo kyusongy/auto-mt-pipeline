@@ -97,8 +97,6 @@ class ActionModifier:
         
         1. **Keep the user intent exactly the same**
         2. **Update the thought process** to reflect a realistic reasoning that:
-           - Acknowledges what actually happened in the execution results
-           - Addresses the issues identified in the reviewer feedback
            - Explains the new strategy for the modified actions
            - Shows realistic problem-solving thinking
         3. **Generate new actions** that:
